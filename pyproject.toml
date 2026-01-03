@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "firmament"
+version = "1.0.0"
+description = "Locally-sparse, multi-remote file archiving and sharing"
+authors = [{ name = "Andrew Godwin", email = "andrew@aeracode.org" }]
+requires-python = ">=3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = ["protobuf~=6.33", "pydantic~=2.12.0", "pyyaml~=6.0"]
+
+[project.optional-dependencies]
+dev = ["black", "pre-commit"]
