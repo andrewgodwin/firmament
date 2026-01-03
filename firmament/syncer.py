@@ -4,24 +4,37 @@ from pathlib import Path
 import click
 
 from firmament.backends.base import BaseBackend
-from firmament.checkout import Checkout
 from firmament.config import Config
 
 logger = logging.getLogger(__name__)
 
 
-class Daemon:
+class Syncer:
     """
-    Main daemon.
+    Main sync logic.
 
-    Handles knowing what backends there are and what blocks are currently
-    available.
+    Looks at both backends and the local checkout, and uploads/downloads as needed.
     """
 
     backends: dict[str, BaseBackend] = {}
-    checkouts: list[Checkout] = []
 
-    def __init__(self, config_path: Path):
+    def __init__(self, checkout_path: Path):
+
+        # Check checkout_path is a reasonable directory
+        checkout_path = checkout_path.expanduser().resolve()
+        if not checkout_path.is_dir():
+            raise ValueError("Non-directory passed as checkout_path")
+
+        # Go through and find the actual checkout root
+        while True:
+            db_path = checkout_path / ".firmament.db"
+            if db_path.is_file():
+                break
+            # Check if we've reached the root directory
+            if checkout_path.parent == checkout_path:
+                raise ValueError("No Firmament checkout found in directory hierarchy")
+            checkout_path = checkout_path.parent
+
         # Load configuration
         self.config = Config(config_path)
         logger.info(f"Config file: {config_path}")
@@ -55,35 +68,3 @@ class Daemon:
             print(file)
             print([x for x, y in file.blocks()])
         logging.info("Stopping")
-
-
-@click.command()
-@click.argument(
-    "config",
-    type=click.Path(exists=True, path_type=Path),
-    required=True,
-)
-@click.option(
-    "--log-level",
-    type=click.Choice(
-        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
-    ),
-    default="INFO",
-)
-def main(config: Path, log_level: str):
-    """
-    Firmament main daemon
-    """
-    # Configure logging
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
-
-    # Create and run daemon
-    daemon = Daemon(config_path=config)
-    daemon.run()
-
-
-if __name__ == "__main__":
-    main()
