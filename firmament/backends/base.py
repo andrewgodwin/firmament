@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import ClassVar
 
 
@@ -32,25 +33,25 @@ class BaseBackend:
     def implementation_get(cls, alias: str):
         return cls.implementation_registry[alias]
 
-    def block_exists(self, sha256sum: str) -> bool:
+    def content_exists(self, sha256sum: str) -> bool:
         """
-        Returns if the block is available from this backend.
-        """
-        raise NotImplementedError()
-
-    def block_store(self, sha256sum: str, content: bytes):
-        """
-        Adds a block to this backend. Blocks until complete.
+        Returns if the FileContent is available from this backend.
         """
         raise NotImplementedError()
 
-    def block_retrieve(self, sha256sum: str) -> bytes:
+    def content_store(self, sha256sum: str, local_path: Path):
+        """
+        Adds a FileContent to this backend. Blocks until complete.
+        """
+        raise NotImplementedError()
+
+    def content_retrieve(self, sha256sum: str, local_path: Path):
         """
         Retrieves contents of a block
         """
         raise NotImplementedError()
 
-    def block_delete(self, sha256sum: str):
+    def content_delete(self, sha256sum: str):
         """
         Deletes a block from this backend
         """

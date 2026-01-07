@@ -13,7 +13,18 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["protobuf~=6.33", "pydantic~=2.12.0", "pyyaml~=6.0"]
+dependencies = [
+    "protobuf~=6.33",
+    "pydantic~=2.12.0",
+    "pyyaml~=6.0",
+    "sqlalchemy~=2.0.0",
+]
+
+[project.scripts]
+firmament = "firmament.cli:main"
 
 [project.optional-dependencies]
 dev = ["black", "pre-commit"]
+
+[tool.setuptools.packages.find]
+include = ["firmament*"]

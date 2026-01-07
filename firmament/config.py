@@ -5,34 +5,49 @@ import yaml
 from pydantic import AfterValidator, BaseModel
 from pydantic.types import PathType
 
+from firmament.backends.base import BaseBackend
+from firmament.database import Database
+
 DirectoryPath = Annotated[
     Path, AfterValidator(lambda v: v.expanduser()), PathType("dir")
 ]
+FilePath = Annotated[Path, AfterValidator(lambda v: v.expanduser()), PathType("file")]
 
 
-class BackendConfig(BaseModel):
+class BackendSchema(BaseModel):
 
     type: str
     options: dict[str, Any]
 
 
-class CheckoutConfig(BaseModel):
-    """
-    Checkout configuration options
-    """
+class ConfigSchema(BaseModel):
 
-    local_path: DirectoryPath
-    remote_path: Path
+    backends: dict[str, BackendSchema]
 
 
-class Config(BaseModel):
+class Config:
     """
     Config file parser
     """
 
-    backends: dict[str, BackendConfig]
-    checkouts: list[CheckoutConfig]
+    backends: dict[str, BaseBackend]
 
-    def __init__(self, path: Path):
-        with open(path) as fh:
-            super().__init__(**yaml.safe_load(fh.read()))
+    def __init__(self, root_path: Path):
+        # Calculate paths
+        self.root_path = root_path.resolve()
+        self.meta_path = self.root_path / ".firmament"
+        self.config_path = self.meta_path / "config"
+        self.database_path = self.meta_path / "database"
+
+        # Read main config in
+        with open(self.config_path) as fh:
+            self.config_data = ConfigSchema(**yaml.safe_load(fh.read()))
+
+        # Set up backend class instances
+        self.backends = {}
+        for name, backend_config in self.config_data.backends.items():
+            backend_class = BaseBackend.implementation_get(backend_config.type)
+            self.backends[name] = backend_class(**backend_config.options)
+
+        # Set up database
+        self.database = Database(self.database_path)
