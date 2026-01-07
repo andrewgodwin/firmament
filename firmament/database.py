@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 from sqlalchemy import (
@@ -49,10 +50,35 @@ class LocalFile(Base):
         )
 
     @classmethod
-    def without_content(cls, session: Session, limit: int = 100):
+    def without_content(
+        cls, session: Session, limit: int = 100
+    ) -> Sequence["LocalFile"]:
         return (
             session.execute(
                 select(LocalFile).where(LocalFile.content.is_(None)).limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+
+    @classmethod
+    def without_fileversion(
+        cls, session: Session, limit: int = 100
+    ) -> Sequence["LocalFile"]:
+        """
+        Returns LocalFile instances whose path and content do not match any FileVersion.
+        This includes files that don't exist in FileVersion at all, or files where the
+        content differs from the FileVersion.
+        """
+        return (
+            session.execute(
+                select(LocalFile)
+                .outerjoin(FileVersion, LocalFile.path == FileVersion.path)
+                .where(
+                    (FileVersion.path.is_(None))  # No FileVersion exists
+                    | (LocalFile.content != FileVersion.content)  # Or content differs
+                )
+                .limit(limit)
             )
             .scalars()
             .all()

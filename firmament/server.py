@@ -2,7 +2,12 @@ import logging
 import time
 
 from firmament.config import Config
-from firmament.operators import BaseOperator, LocalHasherOperator, LocalScannerOperator
+from firmament.operators import (
+    BaseOperator,
+    LocalHasherOperator,
+    LocalScannerOperator,
+    LocalVersionCreationOperator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +22,7 @@ class Server:
     operators: list[type[BaseOperator]] = [
         LocalScannerOperator,
         LocalHasherOperator,
+        LocalVersionCreationOperator,
     ]
 
     def __init__(self, config: Config):

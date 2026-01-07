@@ -56,7 +56,6 @@ def main(ctx, log_level: str, root_path: Path):
     # Traverse up directories until we find our meta dir
     for i in range(100):
         meta_path = root_path / ".firmament"
-        print(meta_path)
         if meta_path.is_dir():
             break
         # Check if we've reached the root directory
