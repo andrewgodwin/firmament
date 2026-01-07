@@ -2,7 +2,7 @@ import logging
 import time
 
 from firmament.config import Config
-from firmament.operators import BaseOperator, LocalScannerOperator
+from firmament.operators import BaseOperator, LocalHasherOperator, LocalScannerOperator
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,7 @@ class Server:
 
     operators: list[type[BaseOperator]] = [
         LocalScannerOperator,
+        LocalHasherOperator,
     ]
 
     def __init__(self, config: Config):
@@ -26,16 +27,17 @@ class Server:
         Main daemon loop.
         """
         logging.debug("Main loop starting")
+
         # Create a thread per operator and start it
         threads = []
         for operator in self.operators:
             threads.append(operator(self.config))
-        [thread.run() for thread in threads]
+        [thread.start() for thread in threads]
+
         # Wait for a shutdown signal
+        logging.info("Running. Ctrl-C to exit.")
         try:
             while True:
-                logging.info("Running. Ctrl-C to exit.")
                 time.sleep(0.1)
         except KeyboardInterrupt:
             pass
-        logging.debug("Stopping")

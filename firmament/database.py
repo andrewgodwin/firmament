@@ -49,6 +49,16 @@ class LocalFile(Base):
         )
 
     @classmethod
+    def without_content(cls, session: Session, limit: int = 100):
+        return (
+            session.execute(
+                select(LocalFile).where(LocalFile.content.is_(None)).limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+
+    @classmethod
     def insert_new(
         cls, session: Session, path: str, mtime: int, size: int
     ) -> "LocalFile":

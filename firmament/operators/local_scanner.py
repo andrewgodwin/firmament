@@ -8,8 +8,9 @@ class LocalScannerOperator(BaseOperator):
     with any discoveries.
     """
 
+    interval = 10
+
     def step(self):
-        self.logger.debug("Starting scan")
         scanned = 0
         new = 0
         with self.config.database.session_factory() as session:
@@ -39,4 +40,6 @@ class LocalScannerOperator(BaseOperator):
                         print("update-new", relative_file_path)
                         new += 1
             session.commit()
-        self.logger.info(f"{scanned} files scanned, {new} files marked for update")
+        self.logger.debug(f"{scanned} files scanned")
+        if new:
+            self.logger.info(f"{new} new files discovered")
