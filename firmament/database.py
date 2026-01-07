@@ -7,7 +7,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 
-class FileVersion(DeclarativeBase):
+class Base(DeclarativeBase):
+    pass
+
+
+class FileVersion(Base):
     """
     Represents what is at a path at a given time - either a file (as defined by content), or nothing (if the content ID is the special value "__deleted__").
 
@@ -22,7 +26,7 @@ class FileVersion(DeclarativeBase):
     size: Mapped[int]
 
 
-class LocalFile(DeclarativeBase):
+class LocalFile(Base):
     """
     Represents what our local files on disk are
 
@@ -82,4 +86,4 @@ class Database:
 
     def check_schema(self):
         # Create all tables defined in Base
-        DeclarativeBase.metadata.create_all(self.engine)
+        Base.metadata.create_all(self.engine)
