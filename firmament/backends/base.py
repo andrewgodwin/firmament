@@ -1,5 +1,13 @@
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, TypedDict
+
+
+class FileVersionMeta(TypedDict):
+    mtime: int
+    size: int
+
+
+FileVersionSet = dict[str, dict[str, FileVersionMeta]]
 
 
 class BaseBackend:
@@ -69,6 +77,22 @@ class BaseBackend:
         Returns a set of all content blocks stored on this backend.
 
         Probably should use some form of caching.
+        """
+        raise NotImplementedError()
+
+    def file_version_download(self) -> FileVersionSet:
+        """
+        Returns a set of FileVersionEntries for all fileversions this remote
+        knows about.
+        """
+        raise NotImplementedError()
+
+    def file_version_upload(self, file_versions: FileVersionSet):
+        """
+        Sets the current set of remote file versions to include the given ones.
+
+        Backends should support this being called in parallel from different
+        checkouts/machines, and union the results together.
         """
         raise NotImplementedError()
 

@@ -1,5 +1,6 @@
 from typing import cast
 
+from ..backends.base import BackendError
 from ..database import LocalFile
 from .base import BaseOperator
 
@@ -27,10 +28,14 @@ class ContentUploadOperator(BaseOperator):
                     # Upload it!
                     local_file = LocalFile.by_content(session, missing_hash)
                     if local_file is not None:
-                        backend.content_upload(
-                            cast(str, local_file.content),
-                            self.config.root_path / local_file.path,
-                        )
+                        try:
+                            backend.content_upload(
+                                cast(str, local_file.content),
+                                self.config.root_path / local_file.path,
+                            )
+                        except BackendError as e:
+                            self.logger.warning(f"Failed to upload {missing_hash}: {e}")
+                            continue
                         self.logger.debug(
                             f"Uploaded content {missing_hash} to {backend_name}"
                         )
