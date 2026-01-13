@@ -8,6 +8,8 @@ class LocalVersionCreationOperator(BaseOperator):
     and creates them.
     """
 
+    log_name = "local-version-creation"
+
     def step(self) -> bool:
         added = 0
         with self.config.database.session_factory() as session:

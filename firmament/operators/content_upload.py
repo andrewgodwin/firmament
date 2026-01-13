@@ -10,7 +10,7 @@ class ContentUploadOperator(BaseOperator):
     Looks for local Contents that are not in a backend and uploads them.
     """
 
-    interval = 10
+    log_name = "content-upload"
 
     def step(self) -> bool:
         uploaded = 0

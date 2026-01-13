@@ -9,6 +9,8 @@ class LocalHasherOperator(BaseOperator):
     Looks for LocalFiles without a content hash, and hashes them.
     """
 
+    log_name = "local-hasher"
+
     def step(self) -> bool:
         hashed = 0
         with self.config.database.session_factory() as session:

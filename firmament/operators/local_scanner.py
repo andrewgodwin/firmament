@@ -8,6 +8,8 @@ class LocalScannerOperator(BaseOperator):
     with any discoveries.
     """
 
+    log_name = "local-scanner"
+
     def step(self) -> bool:
         scanned = 0
         new = 0

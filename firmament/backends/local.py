@@ -13,6 +13,8 @@ from .base import BackendError, BaseBackend, FileVersionSet
 class LocalBackend(BaseBackend):
     """
     A backend that uses a local filesystem directory to store blocks and files.
+
+    It requires that the filesystem support flock()
     """
 
     type_aliases = ["local"]

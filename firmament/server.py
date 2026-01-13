@@ -4,6 +4,7 @@ import time
 from firmament.config import Config
 from firmament.operators.base import BaseOperator
 from firmament.operators.content_upload import ContentUploadOperator
+from firmament.operators.fileversion_sync import FileVersionSyncOperator
 from firmament.operators.local_hasher import LocalHasherOperator
 from firmament.operators.local_scanner import LocalScannerOperator
 from firmament.operators.local_version_creation import LocalVersionCreationOperator
@@ -23,6 +24,7 @@ class Server:
         LocalHasherOperator,
         LocalVersionCreationOperator,
         ContentUploadOperator,
+        FileVersionSyncOperator,
     ]
 
     def __init__(self, config: Config):

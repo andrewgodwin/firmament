@@ -4,9 +4,12 @@ from typing import cast
 
 from sqlalchemy import (
     create_engine,
+    or_,
     select,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+from firmament.backends.base import FileVersionSet
 
 
 class Base(DeclarativeBase):
@@ -26,6 +29,15 @@ class FileVersion(Base):
     content: Mapped[str] = mapped_column(primary_key=True)
     mtime: Mapped[int]
     size: Mapped[int]
+
+    @classmethod
+    def all(cls, session: Session) -> FileVersionSet:
+        result: FileVersionSet = {}
+        for fv in session.execute(select(FileVersion)).scalars().all():
+            if fv.path not in result:
+                result[fv.path] = {}
+            result[fv.path][fv.content] = {"mtime": fv.mtime, "size": fv.size}
+        return result
 
 
 class LocalFile(Base):
@@ -98,7 +110,12 @@ class LocalFile(Base):
             session.execute(
                 select(LocalFile)
                 .outerjoin(FileVersion, LocalFile.path == FileVersion.path)
-                .where(LocalFile.content != FileVersion.content)
+                .where(
+                    or_(
+                        FileVersion.content.is_(None),
+                        LocalFile.content != FileVersion.content,
+                    )
+                )
                 .limit(limit)
             )
             .scalars()
