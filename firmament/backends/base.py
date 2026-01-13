@@ -33,19 +33,26 @@ class BaseBackend:
     def implementation_get(cls, alias: str):
         return cls.implementation_registry[alias]
 
+    def run_maintenance(self):
+        """
+        Entrypoint to do cache rebuilds or the like.
+        Will be called periodically in its own thread.
+        """
+        pass
+
     def content_exists(self, sha256sum: str) -> bool:
         """
         Returns if the FileContent is available from this backend.
         """
         raise NotImplementedError()
 
-    def content_store(self, sha256sum: str, local_path: Path):
+    def content_upload(self, sha256sum: str, disk_path: Path):
         """
         Adds a FileContent to this backend. Blocks until complete.
         """
         raise NotImplementedError()
 
-    def content_retrieve(self, sha256sum: str, local_path: Path):
+    def content_download(self, sha256sum: str, disk_path: Path):
         """
         Retrieves contents of a block
         """
@@ -54,6 +61,14 @@ class BaseBackend:
     def content_delete(self, sha256sum: str):
         """
         Deletes a block from this backend
+        """
+        raise NotImplementedError()
+
+    def content_list(self) -> set[str]:
+        """
+        Returns a set of all content blocks stored on this backend.
+
+        Probably should use some form of caching.
         """
         raise NotImplementedError()
 

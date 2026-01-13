@@ -8,9 +8,8 @@ class LocalVersionCreationOperator(BaseOperator):
     and creates them.
     """
 
-    interval = 10
-
-    def step(self):
+    def step(self) -> bool:
+        added = 0
         with self.config.database.session_factory() as session:
             for local_file in LocalFile.without_fileversion(session):
                 instance = FileVersion(
@@ -20,7 +19,9 @@ class LocalVersionCreationOperator(BaseOperator):
                     size=local_file.size,
                 )
                 session.add(instance)
+                added += 1
                 self.logger.debug(
                     f"Added file version {local_file.path}@{local_file.content}"
                 )
             session.commit()
+        return bool(added)

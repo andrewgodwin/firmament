@@ -12,7 +12,7 @@ _sym_db = _symbol_database.Default()
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x0f\x66irmament.proto\x12\tfirmament")\n\x05\x42lock\x12\x11\n\tsha256sum\x18\x01 \x01(\t\x12\r\n\x05mtime\x18\x02 \x01(\x04"1\n\rBlockDatabase\x12 \n\x06\x62locks\x18\x01 \x03(\x0b\x32\x10.firmament.Block"\xca\x01\n\x04\x46ile\x12\x0c\n\x04path\x18\x01 \x01(\t\x12\r\n\x05mtime\x18\x02 \x01(\x04\x12\x0e\n\x06\x62locks\x18\x03 \x03(\t\x12\x0c\n\x04size\x18\x04 \x01(\x04\x12&\n\x04type\x18\x05 \x01(\x0e\x32\x18.firmament.File.FileType\x12\x0c\n\x04tags\x18\x06 \x03(\t"Q\n\x08\x46ileType\x12\x14\n\x10\x46ILE_TYPE_NORMAL\x10\x00\x12\x18\n\x14\x46ILE_TYPE_EXECUTABLE\x10\x01\x12\x15\n\x11\x46ILE_TYPE_DELETED\x10\x02".\n\x0c\x46ileDatabase\x12\x1e\n\x05\x66iles\x18\x01 \x03(\x0b\x32\x0f.firmament.Fileb\x06proto3'
+    b'\n\x0f\x66irmament.proto\x12\tfirmament"\x1c\n\x07\x43ontent\x12\x11\n\tsha256sum\x18\x01 \x01(\t"7\n\x0f\x43ontentDatabase\x12$\n\x08\x63ontents\x18\x01 \x03(\x0b\x32\x12.firmament.Content"I\n\x0b\x46ileVersion\x12\x0c\n\x04path\x18\x01 \x01(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x01(\t\x12\r\n\x05mtime\x18\x03 \x01(\x04\x12\x0c\n\x04size\x18\x04 \x01(\x04"D\n\x13\x46ileVersionDatabase\x12-\n\rfile_versions\x18\x01 \x03(\x0b\x32\x16.firmament.FileVersionb\x06proto3'
 )
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
@@ -20,14 +20,12 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "firmament_pb2", globals())
 if _descriptor._USE_C_DESCRIPTORS == False:
 
     DESCRIPTOR._options = None
-    _BLOCK._serialized_start = 30
-    _BLOCK._serialized_end = 71
-    _BLOCKDATABASE._serialized_start = 73
-    _BLOCKDATABASE._serialized_end = 122
-    _FILE._serialized_start = 125
-    _FILE._serialized_end = 327
-    _FILE_FILETYPE._serialized_start = 246
-    _FILE_FILETYPE._serialized_end = 327
-    _FILEDATABASE._serialized_start = 329
-    _FILEDATABASE._serialized_end = 375
+    _CONTENT._serialized_start = 30
+    _CONTENT._serialized_end = 58
+    _CONTENTDATABASE._serialized_start = 60
+    _CONTENTDATABASE._serialized_end = 115
+    _FILEVERSION._serialized_start = 117
+    _FILEVERSION._serialized_end = 190
+    _FILEVERSIONDATABASE._serialized_start = 192
+    _FILEVERSIONDATABASE._serialized_end = 260
 # @@protoc_insertion_point(module_scope)

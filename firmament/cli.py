@@ -21,9 +21,18 @@ class ColoredFormatter(logging.Formatter):
     }
     RESET = "\033[0m"
 
+    ABBREVIATIONS = {
+        "DEBUG": "DBG",
+        "INFO": "INF",
+        "WARNING": "WRN",
+        "ERROR": "ERR",
+        "CRITICAL": "CRT",
+    }
+
     def format(self, record):
         color = self.COLORS.get(record.levelno, self.RESET)
-        record.levelname = f"{color}{record.levelname}{self.RESET}"
+        levelname_abbr = self.ABBREVIATIONS.get(record.levelname, record.levelname[:3])
+        record.levelname = f"{color}{levelname_abbr:>3}{self.RESET}"
         record.msg = f"{color}{record.msg}{self.RESET}"
         return super().format(record)
 

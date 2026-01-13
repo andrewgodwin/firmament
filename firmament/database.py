@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 from sqlalchemy import (
     create_engine,
@@ -22,7 +23,7 @@ class FileVersion(Base):
     __tablename__ = "FileVersion"
 
     path: Mapped[str] = mapped_column(primary_key=True)
-    content: Mapped[str]
+    content: Mapped[str] = mapped_column(primary_key=True)
     mtime: Mapped[int]
     size: Mapped[int]
 
@@ -50,6 +51,29 @@ class LocalFile(Base):
         )
 
     @classmethod
+    def by_content(cls, session: Session, content: str) -> "LocalFile | None":
+        return (
+            session.execute(select(LocalFile).where(LocalFile.content == content))
+            .scalars()
+            .first()
+        )
+
+    @classmethod
+    def all_contents(cls, session: Session) -> set[str]:
+        return cast(
+            set[str],
+            set(
+                session.execute(
+                    select(LocalFile.content)
+                    .where(LocalFile.content.is_not(None))
+                    .distinct()
+                )
+                .scalars()
+                .all()
+            ),
+        )
+
+    @classmethod
     def without_content(
         cls, session: Session, limit: int = 100
     ) -> Sequence["LocalFile"]:
@@ -74,10 +98,7 @@ class LocalFile(Base):
             session.execute(
                 select(LocalFile)
                 .outerjoin(FileVersion, LocalFile.path == FileVersion.path)
-                .where(
-                    (FileVersion.path.is_(None))  # No FileVersion exists
-                    | (LocalFile.content != FileVersion.content)  # Or content differs
-                )
+                .where(LocalFile.content != FileVersion.content)
                 .limit(limit)
             )
             .scalars()

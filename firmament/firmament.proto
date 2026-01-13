@@ -2,40 +2,28 @@ syntax = "proto3";
 
 package firmament;
 
-message Block {
+message Content {
     string sha256sum = 1;
-    uint64 mtime = 2;
 }
 
-message BlockDatabase {
-    repeated Block blocks = 1;
+message ContentDatabase {
+    repeated Content contents = 1;
 }
 
-message File {
-    // Path within the filesystem, starting with /
+message FileVersion {
+    // Path within the filesystem
     string path = 1;
 
-    // Modification time/version, unix epoch secs
-    uint64 mtime = 2;
+    // Content hash
+    string content = 2;
 
-    // Block hashes
-    repeated string blocks = 3;
+    // Modification time/version, unix epoch secs
+    uint64 mtime = 3;
 
     // Size in bytes
     uint64 size = 4;
-
-    // Special file types
-    enum FileType {
-        FILE_TYPE_NORMAL = 0;
-        FILE_TYPE_EXECUTABLE = 1;
-        FILE_TYPE_DELETED = 2;
-    }
-    FileType type = 5;
-
-    // Arbitrary tags for this file
-    repeated string tags = 6;
 }
 
-message FileDatabase {
-    repeated File files = 1;
+message FileVersionDatabase {
+    repeated FileVersion file_versions = 1;
 }

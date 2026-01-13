@@ -8,9 +8,7 @@ class LocalScannerOperator(BaseOperator):
     with any discoveries.
     """
 
-    interval = 10
-
-    def step(self):
+    def step(self) -> bool:
         scanned = 0
         new = 0
         with self.config.database.session_factory() as session:
@@ -33,13 +31,12 @@ class LocalScannerOperator(BaseOperator):
                     local_file = LocalFile.by_path(session, relative_file_path)
                     if local_file is None:
                         LocalFile.insert_new(session, relative_file_path, mtime, size)
-                        print("insert-new", relative_file_path)
                         new += 1
                     elif local_file.mtime < mtime:
                         local_file.update_new(mtime, size)
-                        print("update-new", relative_file_path)
                         new += 1
             session.commit()
         self.logger.debug(f"{scanned} files scanned")
         if new:
             self.logger.info(f"{new} new files discovered")
+        return bool(new)
