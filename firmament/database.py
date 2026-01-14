@@ -39,6 +39,37 @@ class FileVersion(Base):
             result[fv.path][fv.content] = {"mtime": fv.mtime, "size": fv.size}
         return result
 
+    @classmethod
+    def paths_without_local(cls, session: Session) -> set[str]:
+        """
+        Returns paths that have at least one FileVersion but no LocalFile.
+        """
+        return set(
+            session.execute(
+                select(FileVersion.path)
+                .outerjoin(LocalFile, FileVersion.path == LocalFile.path)
+                .where(LocalFile.path.is_(None))
+                .distinct()
+            )
+            .scalars()
+            .all()
+        )
+
+    @classmethod
+    def most_recent_with_path(cls, session: Session, path: str) -> "FileVersion | None":
+        """
+        Returns the "most recent" FileVersion (by mtime)
+        """
+        return (
+            session.execute(
+                select(FileVersion)
+                .where(FileVersion.path == path)
+                .order_by(FileVersion.mtime.desc())
+            )
+            .scalars()
+            .first()
+        )
+
 
 class LocalFile(Base):
     """

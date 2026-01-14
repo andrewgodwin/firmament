@@ -20,9 +20,15 @@ class BackendSchema(BaseModel):
     options: dict[str, Any]
 
 
+class PathSchema(BaseModel):
+
+    on_demand: bool | None = None
+
+
 class ConfigSchema(BaseModel):
 
     backends: dict[str, BackendSchema]
+    paths: dict[str, PathSchema]
 
 
 class Config:
@@ -47,7 +53,20 @@ class Config:
         self.backends = {}
         for name, backend_config in self.config_data.backends.items():
             backend_class = BaseBackend.implementation_get(backend_config.type)
-            self.backends[name] = backend_class(**backend_config.options)
+            self.backends[name] = backend_class(name, **backend_config.options)
 
         # Set up database
         self.database = Database(self.database_path)
+
+    def path_is_on_demand(self, path: Path) -> bool:
+        """
+        Works out if the given path is in on-demand mode or not
+        """
+        # Cycle up the path till we find a match
+        while path != path.parent:
+            path_config = self.config_data.paths.get(str(path))
+            if path_config is not None and path_config.on_demand is not None:
+                return path_config.on_demand
+            path = path.parent
+        # Default is full sync
+        return False
