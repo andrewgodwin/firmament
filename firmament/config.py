@@ -6,7 +6,7 @@ from pydantic import AfterValidator, BaseModel
 from pydantic.types import PathType
 
 from firmament.backends.base import BaseBackend
-from firmament.datastore import FileVersion, LocalVersion
+from firmament.datastore import FileVersion, LocalVersion, PathRequest
 
 DirectoryPath = Annotated[
     Path, AfterValidator(lambda v: v.expanduser()), PathType("dir")
@@ -58,16 +58,10 @@ class Config:
         # Set up datastores
         self.local_versions = LocalVersion(self.datastore_path / "local_versions")
         self.file_versions = FileVersion(self.datastore_path / "file_versions")
+        self.path_requests = PathRequest(self.datastore_path / "path_requests")
 
-    def path_is_on_demand(self, path: Path) -> bool:
+    def disk_path(self, path: str) -> Path:
         """
-        Works out if the given path is in on-demand mode or not
+        Convert a virtual path (starting with /) to an absolute disk path.
         """
-        # Cycle up the path till we find a match
-        while path != path.parent:
-            path_config = self.config_data.paths.get(str(path))
-            if path_config is not None and path_config.on_demand is not None:
-                return path_config.on_demand
-            path = path.parent
-        # Default is full sync
-        return False
+        return self.root_path / path.lstrip("/")

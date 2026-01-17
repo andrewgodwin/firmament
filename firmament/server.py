@@ -4,6 +4,7 @@ import time
 from firmament.config import Config
 from firmament.operators.base import BaseOperator
 from firmament.operators.content_upload import ContentUploadOperator
+from firmament.operators.download_once_cleanup import DownloadOnceCleanupOperator
 from firmament.operators.fileversion_sync import FileVersionSyncOperator
 from firmament.operators.local_create import LocalCreateOperator
 from firmament.operators.local_hasher import LocalHasherOperator
@@ -27,6 +28,7 @@ class Server:
         ContentUploadOperator,
         FileVersionSyncOperator,
         LocalCreateOperator,
+        DownloadOnceCleanupOperator,
     ]
 
     def __init__(self, config: Config):

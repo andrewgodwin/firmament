@@ -5,7 +5,12 @@ from typing import Generic, TypeVar, cast
 import lmdb
 import msgpack
 
-from firmament.types import FileVersionData, FileVersionMeta, LocalVersionData
+from firmament.types import (
+    FileVersionData,
+    FileVersionMeta,
+    LocalVersionData,
+    PathRequestType,
+)
 
 T = TypeVar("T")
 
@@ -116,8 +121,8 @@ class LocalVersion(DiskDatastore[LocalVersionData]):
     """
 
     def _validate_key(self, key: str):
-        if key.startswith("/"):
-            raise ValueError("LocalVersion paths cannot start with /")
+        if not key.startswith("/"):
+            raise ValueError("LocalVersion paths must start with /")
 
     def by_content_hash(self, content_hash: str) -> tuple[str, LocalVersionData]:
         """
@@ -164,8 +169,8 @@ class FileVersion(DiskDatastore[FileVersionData]):
     """
 
     def _validate_key(self, key: str):
-        if key.startswith("/"):
-            raise ValueError("FileVersion paths cannot start with /")
+        if not key.startswith("/"):
+            raise ValueError("FileVersion paths must start with /")
 
     def set_with_content(self, path: str, content_hash: str, meta: FileVersionMeta):
         """
@@ -188,3 +193,25 @@ class FileVersion(DiskDatastore[FileVersionData]):
             return candidates[0]
         except (KeyError, IndexError):
             return None, None
+
+
+class PathRequest(DiskDatastore[PathRequestType]):
+    """
+    Storage of path requests (how we should download/upload a path or not)
+    """
+
+    def _validate_key(self, key: str):
+        if not key.startswith("/"):
+            raise ValueError("PathRequest paths must start with /")
+
+    def resolve_status(self, path: Path) -> PathRequestType:
+        """
+        Tries the path and each of its parents until a status is found.
+        """
+        while path != path.parent:
+            path_config = self.get(str(path))
+            if path_config is not None:
+                return path_config
+            path = path.parent
+        # Default is on-demand (to avoid mass downloads on new checkout)
+        return "on-demand"

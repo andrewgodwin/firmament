@@ -1,9 +1,12 @@
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 
 class FileVersionMeta(TypedDict):
     mtime: int
     size: int
+
+
+FileVersionData = dict[str, FileVersionMeta]
 
 
 class LocalVersionData(TypedDict):
@@ -12,4 +15,4 @@ class LocalVersionData(TypedDict):
     size: int
 
 
-FileVersionData = dict[str, FileVersionMeta]
+PathRequestType = Literal["full", "on-demand", "download-once", "ignore"]

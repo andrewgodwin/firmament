@@ -89,6 +89,17 @@ def server(config):
     Server(config).run()
 
 
+@main.command()
+@click.pass_obj
+def tui(config: Config):
+    """
+    Launch the Terminal User Interface
+    """
+    from firmament.tui import FirmamentTUI
+
+    FirmamentTUI(config).run()
+
+
 @main.group()
 @click.pass_context
 def debug(ctx):

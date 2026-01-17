@@ -14,7 +14,7 @@ class LocalHasherOperator(BaseOperator):
     def step(self) -> bool:
         hashed = 0
         for path in self.config.local_versions.without_content_hashes():
-            with open(self.config.root_path / path, "rb") as fh:
+            with open(self.config.disk_path(path), "rb") as fh:
                 content_hash = hashlib.sha256(fh.read()).hexdigest()
                 stat_result = os.stat(fh.fileno())
             self.config.local_versions[path] = {

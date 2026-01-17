@@ -34,7 +34,7 @@ class ContentUploadOperator(BaseOperator):
                     try:
                         backend.content_upload(
                             missing_hash,
-                            self.config.root_path / local_file_path,
+                            self.config.disk_path(local_file_path),
                         )
                     except BackendError as e:
                         self.logger.warning(

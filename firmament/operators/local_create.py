@@ -22,8 +22,8 @@ class LocalCreateOperator(BaseOperator):
             if created > self.max_per_loop:
                 break
             # Should we even sync this path?
-            if self.config.path_is_on_demand(Path(path)):
-                # TODO: Look for a marker file
+            path_status = self.config.path_requests.resolve_status(Path(path))
+            if path_status == "on-demand" or path_status == "ignore":
                 continue
             # Find the most recent file version
             most_recent_content, most_recent_meta = (
@@ -32,7 +32,8 @@ class LocalCreateOperator(BaseOperator):
             if most_recent_content is None or most_recent_meta is None:
                 continue
             # Download the content to a temporary file
-            final_destination = self.config.root_path / path
+            final_destination = self.config.disk_path(path)
+            final_destination.parent.mkdir(parents=True, exist_ok=True)
             temporary_destination = final_destination.with_name(
                 f".firmament-temp.{final_destination.name}"
             )

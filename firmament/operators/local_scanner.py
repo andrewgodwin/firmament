@@ -23,7 +23,9 @@ class LocalScannerOperator(BaseOperator):
                 scanned += 1
                 # Calculate what this file is and its mtime
                 file_path = (directory / filename).resolve()
-                relative_file_path = str(file_path.relative_to(self.config.root_path))
+                relative_file_path = "/" + str(
+                    file_path.relative_to(self.config.root_path)
+                )
                 stat_result = file_path.stat()
                 # See if we have a database entry for that, or if it's older
                 local_version_data = self.config.local_versions.get(relative_file_path)

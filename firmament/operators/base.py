@@ -11,7 +11,7 @@ class BaseOperator(threading.Thread):
     """
 
     interval_short: float = 1
-    interval_long: float = 30
+    interval_long: float = 10
     log_name = "base-operator"
 
     def __init__(self, config: Config):
