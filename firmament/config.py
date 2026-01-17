@@ -6,7 +6,7 @@ from pydantic import AfterValidator, BaseModel
 from pydantic.types import PathType
 
 from firmament.backends.base import BaseBackend
-from firmament.database import Database
+from firmament.datastore import FileVersion, LocalVersion
 
 DirectoryPath = Annotated[
     Path, AfterValidator(lambda v: v.expanduser()), PathType("dir")
@@ -28,7 +28,7 @@ class PathSchema(BaseModel):
 class ConfigSchema(BaseModel):
 
     backends: dict[str, BackendSchema]
-    paths: dict[str, PathSchema]
+    paths: dict[str, PathSchema] = {}
 
 
 class Config:
@@ -43,7 +43,7 @@ class Config:
         self.root_path = root_path.resolve()
         self.meta_path = self.root_path / ".firmament"
         self.config_path = self.meta_path / "config"
-        self.database_path = self.meta_path / "database"
+        self.datastore_path = self.meta_path / "datastore"
 
         # Read main config in
         with open(self.config_path) as fh:
@@ -53,10 +53,11 @@ class Config:
         self.backends = {}
         for name, backend_config in self.config_data.backends.items():
             backend_class = BaseBackend.implementation_get(backend_config.type)
-            self.backends[name] = backend_class(name, **backend_config.options)
+            self.backends[name] = backend_class(name=name, **backend_config.options)
 
-        # Set up database
-        self.database = Database(self.database_path)
+        # Set up datastores
+        self.local_versions = LocalVersion(self.datastore_path / "local_versions")
+        self.file_versions = FileVersion(self.datastore_path / "file_versions")
 
     def path_is_on_demand(self, path: Path) -> bool:
         """

@@ -1,6 +1,10 @@
 from pathlib import Path
 from typing import ClassVar, TypedDict
 
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESSIV
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
 
 class FileVersionMeta(TypedDict):
     mtime: int
@@ -26,8 +30,12 @@ class BaseBackend:
 
     implementation_registry: ClassVar[dict[str, type["BaseBackend"]]] = {}
 
-    def __init__(self, name: str):
+    encryption_key: bytes | None = None
+    encryption_aessiv: AESSIV | None = None
+
+    def __init__(self, name: str, encryption_key: str | None = None):
         self.name = name
+        self._encryption_init(encryption_key)
 
     def __init_subclass__(cls) -> None:
         if not cls.type_aliases:
@@ -47,6 +55,35 @@ class BaseBackend:
         Will be called periodically in its own thread.
         """
         pass
+
+    def _encryption_init(self, password: str | None = None):
+        """
+        Takes a user-supplied string and derives an AES-SIV key from it and
+        an AES-SIV function, if we need to
+        """
+        if password is not None:
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=64,  # 512 bits / 64 bytes
+                salt=b"NaCl",
+                iterations=600_000,
+            )
+            self.encryption_key = kdf.derive(password.encode("utf8"))
+            self.encryption_aessiv = AESSIV(self.encryption_key)
+
+    def _encrypt_sha256sum(self, sha256sum: str) -> str:
+        if self.encryption_aessiv is not None:
+            return self.encryption_aessiv.encrypt(
+                sha256sum.encode("utf8"), associated_data=None
+            ).decode("utf8")
+        return sha256sum
+
+    def _decrypt_sha256sum(self, crypttext: str) -> str:
+        if self.encryption_aessiv is not None:
+            return self.encryption_aessiv.decrypt(
+                crypttext.encode("utf8"), associated_data=None
+            ).decode("utf8")
+        return crypttext
 
     def content_exists(self, sha256sum: str) -> bool:
         """

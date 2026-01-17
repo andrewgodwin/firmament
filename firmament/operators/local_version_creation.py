@@ -1,4 +1,3 @@
-from ..database import FileVersion, LocalFile
 from .base import BaseOperator
 
 
@@ -12,18 +11,18 @@ class LocalVersionCreationOperator(BaseOperator):
 
     def step(self) -> bool:
         added = 0
-        with self.config.database.session_factory() as session:
-            for local_file in LocalFile.without_fileversion(session):
-                instance = FileVersion(
-                    path=local_file.path,
-                    content=local_file.content,
-                    mtime=local_file.mtime,
-                    size=local_file.size,
-                )
-                session.add(instance)
-                added += 1
-                self.logger.debug(
-                    f"Added file version {local_file.path}@{local_file.content}"
-                )
-            session.commit()
-        return bool(added)
+        for path, data in self.config.local_versions.not_in_file_versions(
+            self.config.file_versions
+        ):
+            # These shouldn't come through anyway, but it's good for typing
+            if data["content_hash"] is None:
+                continue
+            # Make the new FileVersion
+            self.config.file_versions.set_with_content(
+                path,
+                data["content_hash"],
+                {"mtime": data["mtime"], "size": data["size"]},
+            )
+            added += 1
+            self.logger.debug(f"Added file version {path}@{data["content_hash"]}")
+        return added > 0

@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-from ..database import FileVersion, LocalFile
 from .base import BaseOperator
 
 
@@ -16,54 +15,52 @@ class LocalCreateOperator(BaseOperator):
 
     def step(self) -> bool:
         created = 0
-        with self.config.database.session_factory() as session:
-            potential_paths = FileVersion.paths_without_local(session)
-            for path in potential_paths:
-                if created > self.max_per_loop:
+        # Calculate which FileVersion paths do not have a LocalVersion
+        potential_paths = set(self.config.file_versions.keys())
+        potential_paths.difference_update(self.config.local_versions.keys())
+        for path in potential_paths:
+            if created > self.max_per_loop:
+                break
+            # Should we even sync this path?
+            if self.config.path_is_on_demand(Path(path)):
+                # TODO: Look for a marker file
+                continue
+            # Find the most recent file version
+            most_recent_content, most_recent_meta = (
+                self.config.file_versions.most_recent_content(path)
+            )
+            if most_recent_content is None or most_recent_meta is None:
+                continue
+            # Download the content to a temporary file
+            final_destination = self.config.root_path / path
+            temporary_destination = final_destination.with_name(
+                f".firmament-temp.{final_destination.name}"
+            )
+            # TODO: Go through backends in download priority order
+            for backend in self.config.backends.values():
+                if backend.content_exists(most_recent_content):
+                    self.logger.debug(
+                        f"Downloading {most_recent_content} to {temporary_destination}"
+                    )
+                    backend.content_download(most_recent_content, temporary_destination)
+                    os.utime(
+                        temporary_destination,
+                        (most_recent_meta["mtime"], most_recent_meta["mtime"]),
+                    )
                     break
-                # Should we even sync this path?
-                if not self.config.path_is_on_demand(Path(path)):
-                    # TODO: Look for a marker file
-                    continue
-                # Find the most recent file version
-                file_version = FileVersion.most_recent_with_path(session, path)
-                if file_version is None:
-                    continue
-                # Download the content to a temporary file
-                final_destination = self.config.root_path / path
-                temporary_destination = final_destination.with_name(
-                    f".firmament-temp.{final_destination.name}"
+            else:
+                self.logger.warn(
+                    f"Cannot download content {most_recent_content} for {path} - not available on any backend"
                 )
-                # TODO: Go through backends in download priority order
-                for backend in self.config.backends.values():
-                    if backend.content_exists(file_version.content):
-                        self.logger.debug(
-                            f"Downloading {file_version.content} to {temporary_destination}"
-                        )
-                        backend.content_download(
-                            file_version.content, temporary_destination
-                        )
-                        os.utime(
-                            temporary_destination,
-                            (file_version.mtime, file_version.mtime),
-                        )
-                        break
-                else:
-                    self.logger.warn(
-                        f"Cannot download content {file_version.content} for {file_version.path} - not available on any backend"
-                    )
-                    continue
-                # Make a LocalFile and move the temporary file into place
-                session.add(
-                    LocalFile(
-                        path=file_version.path,
-                        content=file_version.content,
-                        mtime=file_version.mtime,
-                        size=file_version.size,
-                    )
-                )
-                temporary_destination.rename(final_destination)
-                self.logger.debug(f"Downloaded {final_destination}")
-                created += 1
-            session.commit()
+                continue
+            # Create a LocalVersion with an empty content hash (so it's rechecked)
+            self.config.local_versions[path] = {
+                "content_hash": None,
+                "mtime": most_recent_meta["mtime"],
+                "size": most_recent_meta["size"],
+            }
+            # Move the temporary file into place
+            temporary_destination.rename(final_destination)
+            self.logger.debug(f"Downloaded {final_destination}")
+            created += 1
         return created > 0

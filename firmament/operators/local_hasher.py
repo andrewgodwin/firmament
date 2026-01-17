@@ -1,6 +1,6 @@
 import hashlib
+import os
 
-from ..database import LocalFile
 from .base import BaseOperator
 
 
@@ -13,13 +13,15 @@ class LocalHasherOperator(BaseOperator):
 
     def step(self) -> bool:
         hashed = 0
-        with self.config.database.session_factory() as session:
-            for local_file in LocalFile.without_content(session):
-                with open(self.config.root_path / local_file.path, "rb") as fh:
-                    local_file.content = hashlib.sha256(fh.read()).hexdigest()
-                hashed += 1
-                self.logger.debug(
-                    f"Hashed file {local_file.path} as {local_file.content}"
-                )
-            session.commit()
+        for path in self.config.local_versions.without_content_hashes():
+            with open(self.config.root_path / path, "rb") as fh:
+                content_hash = hashlib.sha256(fh.read()).hexdigest()
+                stat_result = os.stat(fh.fileno())
+            self.config.local_versions[path] = {
+                "content_hash": content_hash,
+                "size": stat_result.st_size,
+                "mtime": int(stat_result.st_mtime),
+            }
+            hashed += 1
+            self.logger.debug(f"Hashed file {path} as {content_hash}")
         return bool(hashed)

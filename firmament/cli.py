@@ -1,7 +1,10 @@
 import logging
+from datetime import datetime
 from pathlib import Path
 
 import click
+from rich.console import Console
+from rich.table import Table
 
 from firmament.config import Config
 from firmament.server import Server
@@ -84,6 +87,73 @@ def server(config):
     One-shot sync for debugging
     """
     Server(config).run()
+
+
+@main.group()
+@click.pass_context
+def debug(ctx):
+    """
+    Debug commands for inspecting internal state
+    """
+    pass
+
+
+@debug.command("list-fv")
+@click.pass_obj
+def list_fv(config: Config):
+    """
+    List all file versions in the datastore
+    """
+    console = Console()
+    table = Table()
+
+    table.add_column("Path", style="cyan")
+    table.add_column("Content Hash", style="green")
+    table.add_column("Size", justify="right", style="magenta")
+    table.add_column("Modified", style="yellow")
+
+    for path, versions in config.file_versions.items():
+        for content_hash, meta in versions.items():
+            mtime = datetime.fromtimestamp(meta["mtime"]).strftime("%Y-%m-%d %H:%M:%S")
+            size = _format_size(meta["size"])
+            table.add_row(path, content_hash[:12] + "...", size, mtime)
+
+    console.print(table)
+
+
+@debug.command("list-lv")
+@click.pass_obj
+def list_lv(config: Config):
+    """
+    List all local versions in the datastore
+    """
+    console = Console()
+    table = Table()
+
+    table.add_column("Path", style="cyan")
+    table.add_column("Content Hash", style="green")
+    table.add_column("Size", justify="right", style="magenta")
+    table.add_column("Modified", style="yellow")
+
+    for path, data in config.local_versions.items():
+        mtime = datetime.fromtimestamp(data["mtime"]).strftime("%Y-%m-%d %H:%M:%S")
+        size = _format_size(data["size"])
+        content_hash = data["content_hash"]
+        hash_display = content_hash[:12] + "..." if content_hash else "[dim]None[/dim]"
+        table.add_row(path, hash_display, size, mtime)
+
+    console.print(table)
+
+
+def _format_size(size: float) -> str:
+    """
+    Format size in human-readable units
+    """
+    for unit in ["B", "KB", "MB", "GB"]:
+        if size < 1024:
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
 
 
 if __name__ == "__main__":

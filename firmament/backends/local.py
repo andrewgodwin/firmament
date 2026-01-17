@@ -19,8 +19,8 @@ class LocalBackend(BaseBackend):
 
     type_aliases = ["local"]
 
-    def __init__(self, name: str, root: str):
-        super().__init__(name)
+    def __init__(self, root: str, name: str, encryption_key: str | None = None):
+        super().__init__(name=name, encryption_key=encryption_key)
         self.root = Path(root).expanduser()
         self.content_root = self.root / "content"
         self.content_db_path = self.root / "content-database"
