@@ -6,7 +6,7 @@ from pydantic import AfterValidator, BaseModel
 from pydantic.types import PathType
 
 from firmament.backends.base import BaseBackend
-from firmament.datastore import FileVersion, LocalVersion, PathRequest
+from firmament.datastore import ContentBackends, FileVersion, LocalVersion, PathRequest
 
 DirectoryPath = Annotated[
     Path, AfterValidator(lambda v: v.expanduser()), PathType("dir")
@@ -64,6 +64,9 @@ class Config:
         self.local_versions = LocalVersion(self.datastore_path / "local_versions")
         self.file_versions = FileVersion(self.datastore_path / "file_versions")
         self.path_requests = PathRequest(self.datastore_path / "path_requests")
+        self.content_backends = ContentBackends(
+            self.datastore_path / "content_backends"
+        )
 
     def disk_path(self, path: str) -> Path:
         """

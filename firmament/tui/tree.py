@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from rich.style import Style
@@ -31,6 +30,7 @@ class TreeNodeData:
     status: FileStatus | None  # None for directories
     path_request: PathRequestType | None  # Direct PathRequest if set
     effective_path_request: PathRequestType  # Resolved (inherited) PathRequest
+    backend_count: int = 0  # Number of backends that have this file's content
     children: dict[str, "TreeNodeData"] = field(default_factory=dict)
 
 
@@ -66,7 +66,7 @@ def build_tree(config: "Config") -> TreeNodeData:
                     status=None,
                     path_request=config.path_requests.get(current_path),
                     effective_path_request=config.path_requests.resolve_status(
-                        Path(current_path)
+                        current_path
                     ),
                     children={},
                 )
@@ -77,13 +77,21 @@ def build_tree(config: "Config") -> TreeNodeData:
         has_local = file_path in config.local_versions
         status = FileStatus.LOCAL if has_local else FileStatus.AVAILABLE
 
+        # Count backends that have the most recent version of this file
+        content_hash, _ = config.file_versions.most_recent_content(file_path)
+        backend_count = 0
+        if content_hash:
+            backends = config.content_backends.get(content_hash, [])
+            backend_count = len(backends) if backends else 0
+
         current.children[filename] = TreeNodeData(
             path=file_path,
             name=filename,
             is_directory=False,
             status=status,
             path_request=config.path_requests.get(file_path),
-            effective_path_request=config.path_requests.resolve_status(Path(file_path)),
+            effective_path_request=config.path_requests.resolve_status(file_path),
+            backend_count=backend_count,
             children={},
         )
 
@@ -172,6 +180,9 @@ class FileTree(Tree[TreeNodeData]):
                 )
         else:
             label.append(data.name, style=style)
+            # Show backend count for files
+            if data.backend_count > 0:
+                label.append(f" ({data.backend_count})", style=Style(dim=True) + style)
 
         return label
 

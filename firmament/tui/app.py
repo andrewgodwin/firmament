@@ -64,6 +64,7 @@ class FirmamentTUI(App[None]):
         Binding("d", "set_download_once", "DOWNLOAD_ONCE"),
         Binding("i", "set_ignore", "IGNORE"),
         Binding("c", "clear_request", "Clear"),
+        Binding("ctrl+d", "delete_local", "Delete Local"),
     ]
 
     def __init__(self, config: Config):
@@ -87,6 +88,8 @@ class FirmamentTUI(App[None]):
         self.refresh_tree()
         # Focus the tree for keyboard navigation
         self.query_one("#file-tree", FileTree).focus()
+        # Set up auto-refresh every 10 seconds
+        self.set_interval(10, self.refresh_tree)
 
     def refresh_tree(self) -> None:
         """Rebuild tree from current data, preserving expanded state"""
@@ -228,6 +231,12 @@ class FirmamentTUI(App[None]):
                     text.append(f"{content_hash[:12]}...\n", style="green")
                     text.append(f"        {mtime:%Y-%m-%d %H:%M}\n", style="dim")
                     text.append(f"        {size}\n", style="dim")
+                    # Show which backends have this content
+                    backends = self.config.content_backends.get(content_hash, [])
+                    if backends:
+                        text.append(
+                            f"        Backends: {', '.join(backends)}\n", style="dim"
+                        )
 
         details.update(text)
 
@@ -278,3 +287,39 @@ class FirmamentTUI(App[None]):
         """Refresh tree from datastore"""
         self.refresh_tree()
         self.notify("Tree refreshed")
+
+    def action_delete_local(self) -> None:
+        """Delete local copy of file if path request allows it"""
+        tree = self.query_one("#file-tree", FileTree)
+        node = tree.cursor_node
+        if not node or not node.data:
+            return
+
+        data = node.data
+        if data.is_directory:
+            self.notify("Cannot delete directories", severity="warning")
+            return
+
+        if data.status != FileStatus.LOCAL:
+            self.notify("File is not local", severity="warning")
+            return
+
+        # Check if path request allows deletion (on-demand or download-once)
+        effective_request = data.effective_path_request
+        if effective_request not in ("on-demand", "download-once"):
+            self.notify(
+                f"Cannot delete: path request is '{effective_request}'",
+                severity="warning",
+            )
+            return
+
+        # Delete the file from disk and remove from local_versions
+        path = data.path
+        disk_path = self.config.disk_path(path)
+        try:
+            disk_path.unlink()
+            del self.config.local_versions[path]
+            self.refresh_tree()
+            self.notify(f"Deleted local copy: {path}")
+        except Exception as e:
+            self.notify(f"Failed to delete: {e}", severity="error")

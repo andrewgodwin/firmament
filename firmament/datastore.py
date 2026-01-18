@@ -107,6 +107,16 @@ class DiskDatastore(Generic[T]):
                 result[key.decode("utf-8")] = cast(T, msgpack.unpackb(value))
         return result
 
+    def set_all(self, value: dict[str, T]):
+        """
+        Overwrite the entire database to match value
+        """
+        with self.env.begin(write=True) as txn:
+            txn.drop(self.env.open_db(), delete=False)
+            for key, val in value.items():
+                self._validate_key(key)
+                txn.put(key.encode("utf-8"), msgpack.packb(val))
+
     def __len__(self) -> int:
         with self.env.begin() as txn:
             return txn.stat()["entries"]
@@ -204,14 +214,21 @@ class PathRequest(DiskDatastore[PathRequestType]):
         if not key.startswith("/"):
             raise ValueError("PathRequest paths must start with /")
 
-    def resolve_status(self, path: Path) -> PathRequestType:
+    def resolve_status(self, path: str) -> PathRequestType:
         """
         Tries the path and each of its parents until a status is found.
         """
-        while path != path.parent:
-            path_config = self.get(str(path))
+        path_obj = Path(path)
+        while path_obj != path_obj.parent:
+            path_config = self.get(str(path_obj))
             if path_config is not None:
                 return path_config
-            path = path.parent
+            path_obj = path_obj.parent
         # Default is on-demand (to avoid mass downloads on new checkout)
         return "on-demand"
+
+
+class ContentBackends(DiskDatastore[list[str]]):
+    """
+    Storage of what backend names each content hash is on
+    """

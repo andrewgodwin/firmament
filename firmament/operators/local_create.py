@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 from .base import BaseOperator
 
@@ -22,7 +21,7 @@ class LocalCreateOperator(BaseOperator):
             if created > self.max_per_loop:
                 break
             # Should we even sync this path?
-            path_status = self.config.path_requests.resolve_status(Path(path))
+            path_status = self.config.path_requests.resolve_status(path)
             if path_status == "on-demand" or path_status == "ignore":
                 continue
             # Find the most recent file version
