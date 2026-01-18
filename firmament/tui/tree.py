@@ -7,6 +7,7 @@ from rich.text import Text
 from textual.widgets import Tree
 from textual.widgets.tree import TreeNode
 
+from firmament.constants import DELETED_CONTENT_HASH
 from firmament.types import PathRequestType
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ class FileStatus(Enum):
 
     AVAILABLE = "A"  # Has FileVersion but no LocalVersion
     LOCAL = "L"  # Has both FileVersion and LocalVersion
+    DELETED = "X"  # Most recent FileVersion is DELETED_CONTENT_HASH
 
 
 @dataclass
@@ -75,12 +77,20 @@ def build_tree(config: "Config") -> TreeNodeData:
         # Create file node
         filename = parts[-1]
         has_local = file_path in config.local_versions
-        status = FileStatus.LOCAL if has_local else FileStatus.AVAILABLE
 
         # Count backends that have the most recent version of this file
         content_hash, _ = config.file_versions.most_recent_content(file_path)
+
+        # Determine file status
+        if content_hash == DELETED_CONTENT_HASH:
+            status = FileStatus.DELETED
+        elif has_local:
+            status = FileStatus.LOCAL
+        else:
+            status = FileStatus.AVAILABLE
+
         backend_count = 0
-        if content_hash:
+        if content_hash and content_hash != DELETED_CONTENT_HASH:
             backends = config.content_backends.get(content_hash, [])
             backend_count = len(backends) if backends else 0
 
@@ -149,6 +159,8 @@ class FileTree(Tree[TreeNodeData]):
         # Status indicator
         if data.is_directory:
             label.append("[D] ", style=Style(color="grey70") + style)
+        elif data.status == FileStatus.DELETED:
+            label.append("[X] ", style=Style(color="red") + style)
         elif data.status == FileStatus.LOCAL:
             label.append("[L] ", style=Style(color="green") + style)
         else:

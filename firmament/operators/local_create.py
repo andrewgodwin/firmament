@@ -1,5 +1,7 @@
 import os
 
+from firmament.constants import DELETED_CONTENT_HASH
+
 from .base import BaseOperator
 
 
@@ -14,6 +16,18 @@ class LocalCreateOperator(BaseOperator):
 
     def step(self) -> bool:
         created = 0
+        deleted = 0
+
+        # Handle deletions: find FileVersions marked deleted that still have a LocalVersion
+        for path in self.config.file_versions.deleted_paths():
+            if path in self.config.local_versions:
+                file_path = self.config.disk_path(path)
+                if file_path.exists():
+                    file_path.unlink()
+                    self.logger.debug(f"Deleted {file_path}")
+                del self.config.local_versions[path]
+                deleted += 1
+
         # Calculate which FileVersion paths do not have a LocalVersion
         potential_paths = set(self.config.file_versions.keys())
         potential_paths.difference_update(self.config.local_versions.keys())
@@ -29,6 +43,9 @@ class LocalCreateOperator(BaseOperator):
                 self.config.file_versions.most_recent_content(path)
             )
             if most_recent_content is None or most_recent_meta is None:
+                continue
+            # Skip deleted files (handled above)
+            if most_recent_content == DELETED_CONTENT_HASH:
                 continue
             # Download the content to a temporary file
             final_destination = self.config.disk_path(path)
@@ -63,4 +80,4 @@ class LocalCreateOperator(BaseOperator):
             temporary_destination.rename(final_destination)
             self.logger.debug(f"Downloaded {final_destination}")
             created += 1
-        return created > 0
+        return created > 0 or deleted > 0

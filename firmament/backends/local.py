@@ -49,8 +49,10 @@ class LocalBackend(BaseBackend):
                     target_handle.write(chunk)
                 else:
                     break
+            fh.flush()
+            version = str(os.stat(fh.fileno()).st_mtime_ns)
             enc_handle.close()
-            return str(os.stat(fh.fileno()).st_mtime_ns)
+            return version
 
     def remote_write_io(
         self,
@@ -69,12 +71,13 @@ class LocalBackend(BaseBackend):
         enc_handle = self.encryptor.encrypt_file(source_handle)
         path_obj = Path(path)
         path_obj.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "wb") as fh:
+        with open(path, "r+b" if path_obj.is_file() else "wb") as fh:
             if over_version:
                 fcntl.flock(fh, fcntl.LOCK_EX)
                 current_version = str(path_obj.stat().st_mtime_ns)
                 if current_version != over_version:
                     fcntl.flock(fh, fcntl.LOCK_UN)
+                    print("Local version lock issue")
                     raise VersionError(
                         f"Requested {over_version}, got {current_version}"
                     )
@@ -85,6 +88,7 @@ class LocalBackend(BaseBackend):
                         fh.write(chunk)
                     else:
                         break
+                fh.truncate()
                 fh.flush()
             finally:
                 fcntl.flock(fh, fcntl.LOCK_UN)

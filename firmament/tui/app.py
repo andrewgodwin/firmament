@@ -8,6 +8,7 @@ from textual.widgets import Footer, Static, Tree
 from textual.widgets.tree import TreeNode
 
 from firmament.config import Config
+from firmament.constants import DELETED_CONTENT_HASH
 from firmament.types import PathRequestType
 
 from .tree import FileStatus, FileTree, TreeNodeData, build_tree
@@ -88,8 +89,8 @@ class FirmamentTUI(App[None]):
         self.refresh_tree()
         # Focus the tree for keyboard navigation
         self.query_one("#file-tree", FileTree).focus()
-        # Set up auto-refresh every 10 seconds
-        self.set_interval(10, self.refresh_tree)
+        # Set up auto-refresh every 2 seconds
+        self.set_interval(2, self.refresh_tree)
 
     def refresh_tree(self) -> None:
         """Rebuild tree from current data, preserving expanded state"""
@@ -148,7 +149,9 @@ class FirmamentTUI(App[None]):
         text.append("[A]", style="bold yellow")
         text.append("vailable ")
         text.append("[L]", style="bold green")
-        text.append("ocal | ")
+        text.append("ocal ")
+        text.append("[X]", style="bold red")
+        text.append(" Deleted | ")
         # Path request indicators
         text.append("<F>", style="bold cyan")
         text.append("ull ")
@@ -190,7 +193,9 @@ class FirmamentTUI(App[None]):
         # Status (for files only)
         if data.status:
             text.append("Status: ", style="bold")
-            if data.status == FileStatus.LOCAL:
+            if data.status == FileStatus.DELETED:
+                text.append("Deleted\n", style="red")
+            elif data.status == FileStatus.LOCAL:
                 text.append("Local\n", style="green")
             else:
                 text.append("Available\n", style="yellow")
@@ -222,6 +227,12 @@ class FirmamentTUI(App[None]):
                 )
                 for content_hash, meta in sorted_versions:
                     mtime = datetime.fromtimestamp(meta["mtime"])
+                    # Handle deleted versions specially
+                    if content_hash == DELETED_CONTENT_HASH:
+                        text.append("  [X] ", style="bold red")
+                        text.append("DELETED\n", style="red")
+                        text.append(f"        {mtime:%Y-%m-%d %H:%M}\n", style="dim")
+                        continue
                     size = self._format_size(meta["size"])
                     # Mark if this version is local
                     if content_hash == local_hash:

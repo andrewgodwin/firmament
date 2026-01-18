@@ -5,6 +5,7 @@ from typing import Generic, TypeVar, cast
 import lmdb
 import msgpack
 
+from firmament.constants import DELETED_CONTENT_HASH
 from firmament.types import (
     FileVersionData,
     FileVersionMeta,
@@ -203,6 +204,15 @@ class FileVersion(DiskDatastore[FileVersionData]):
             return candidates[0]
         except (KeyError, IndexError):
             return None, None
+
+    def deleted_paths(self) -> Iterator[str]:
+        """
+        Returns paths where the most recent content hash is DELETED_CONTENT_HASH
+        """
+        for path in self.keys():
+            most_recent, _ = self.most_recent_content(path)
+            if most_recent == DELETED_CONTENT_HASH:
+                yield path
 
 
 class PathRequest(DiskDatastore[PathRequestType]):

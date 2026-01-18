@@ -1,3 +1,6 @@
+import time
+
+from firmament.constants import DELETED_CONTENT_HASH
 from firmament.types import LocalVersionData
 
 from .base import BaseOperator
@@ -26,7 +29,11 @@ class LocalScannerOperator(BaseOperator):
                 # Calculate what this file is and its mtime
                 file_path = (directory / filename).resolve()
                 firmament_path = "/" + str(file_path.relative_to(self.config.root_path))
-                stat_result = file_path.stat()
+                try:
+                    stat_result = file_path.stat()
+                except FileNotFoundError:
+                    # File was deleted between walk() and stat()
+                    continue
                 seen.add(firmament_path)
                 # See if we have a database entry for that, or if it's older
                 local_version_data = self.config.local_versions.get(firmament_path)
@@ -46,10 +53,16 @@ class LocalScannerOperator(BaseOperator):
         for path in deleted_paths:
             deleted += 1
             if self.config.path_requests.resolve_status(path) == "full":
-                self.logger.debug(f"File deleted (propagating): {firmament_path}")
-                # TODO: Propagate this deletion as a new FileVersion with DELETED_CONTENT_HASH as the content hash value
+                self.logger.debug(f"File deleted (propagating): {path}")
+                self.config.file_versions.set_with_content(
+                    path,
+                    DELETED_CONTENT_HASH,
+                    {"mtime": int(time.time()), "size": 0},
+                )
+                del self.config.local_versions[path]
             else:
-                self.logger.debug(f"File deleted (not propagating): {firmament_path}")
+                self.logger.debug(f"File deleted (not propagating): {path}")
+                del self.config.local_versions[path]
         if new:
             self.logger.info(f"{new} new files discovered")
         if deleted:
