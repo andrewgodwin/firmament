@@ -65,6 +65,11 @@ def main(ctx, log_level: str, root_path: Path):
         level=getattr(logging, log_level.upper()),
         handlers=[handler],
     )
+    # Silence noisy boto/AWS SDK loggers
+    logging.getLogger("boto3").setLevel(logging.WARNING)
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("s3transfer").setLevel(logging.WARNING)
     # Traverse up directories until we find our meta dir
     for i in range(100):
         meta_path = root_path / ".firmament"

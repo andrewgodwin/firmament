@@ -14,6 +14,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "boto3>=1.28.0",
     "protobuf~=6.33",
     "pydantic~=2.12.0",
     "pyyaml~=6.0",
