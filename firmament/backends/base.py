@@ -87,12 +87,15 @@ class BaseBackend:
         path: str,
         content: bytes,
         over_version: str | None = None,
+        is_content: bool = False,
     ):
         """
         Writed passed bytes into encrypted contents stored at "path"
         """
         buffer = BytesIO(content)
-        self.remote_write_io(path, buffer, over_version=over_version)
+        self.remote_write_io(
+            path, buffer, over_version=over_version, is_content=is_content
+        )
 
     def remote_read_io(
         self,
@@ -112,6 +115,7 @@ class BaseBackend:
         path: str,
         source_handle: BinaryIO,
         over_version: str | None = None,
+        is_content: bool = False,
     ):
         """
         Writes encrypted contents from the passed file handle into "path".
@@ -119,6 +123,9 @@ class BaseBackend:
         If lock is True, tries to lock the file to ensure nobody else writes it at
         the same time as us. If a lock cannot be established (either synchronously
         or via a update-if-version-unchanged system), raises IOError.
+
+        If is_content is True, this is a content block write (as opposed to a
+        database file). Backends may use this to apply different storage policies.
         """
         raise NotImplementedError()
 
@@ -175,7 +182,7 @@ class BaseBackend:
         """
         content_path = self.remote_content_path(sha256sum)
         with open(disk_path, "rb") as orig_fh:
-            self.remote_write_io(content_path, orig_fh)
+            self.remote_write_io(content_path, orig_fh, is_content=True)
         self.extra_content_known.add(sha256sum)
 
     def content_download(self, sha256sum: str, disk_path: Path):

@@ -26,10 +26,12 @@ class S3Backend(BaseBackend):
         endpoint_url: str | None = None,
         access_key_id: str | None = None,
         secret_access_key: str | None = None,
+        storage_class: str | None = None,
     ):
         super().__init__(name=name, encryption_key=encryption_key)
         self.bucket = bucket
         self.prefix = prefix.strip("/")
+        self.storage_class = storage_class
 
         # Build client kwargs
         client_kwargs: dict = {}
@@ -103,6 +105,7 @@ class S3Backend(BaseBackend):
         path: str,
         source_handle: BinaryIO,
         over_version: str | None = None,
+        is_content: bool = False,
     ):
         """
         Writes encrypted contents from the passed file handle into "path".
@@ -110,6 +113,9 @@ class S3Backend(BaseBackend):
         If over_version is provided, uses conditional put to ensure we're
         overwriting the expected version. Raises VersionError if the current
         version doesn't match.
+
+        If is_content is True and storage_class is configured, applies the
+        storage class to the object.
         """
         key = self._full_key(path)
 
@@ -123,6 +129,10 @@ class S3Backend(BaseBackend):
             "Key": key,
             "Body": encrypted_data,
         }
+
+        # Apply storage class for content writes if configured
+        if is_content and self.storage_class:
+            put_kwargs["StorageClass"] = self.storage_class
 
         # If we have a version to check against, use conditional put
         if over_version:

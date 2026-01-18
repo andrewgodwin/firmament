@@ -1,4 +1,5 @@
 import fcntl
+import os
 from collections.abc import Iterator
 from pathlib import Path
 from typing import BinaryIO
@@ -33,27 +34,30 @@ class LocalBackend(BaseBackend):
         self,
         path: str,
         target_handle: BinaryIO,
-    ):
+    ) -> str:
         """
         Reads encrypted contents stored at "path" into the passed file handle.
 
         Returns an identifier that can be passed back to _write_* to ensure the
         underlying file has not changed.
         """
-        enc_handle = self.encryptor.decrypt_file(open(path, "rb"))
-        while True:
-            chunk = enc_handle.read(self.encryptor.chunk_size)
-            if chunk:
-                target_handle.write(chunk)
-            else:
-                break
-        enc_handle.close()
+        with open(path, "rb") as fh:
+            enc_handle = self.encryptor.decrypt_file(fh)
+            while True:
+                chunk = enc_handle.read(self.encryptor.chunk_size)
+                if chunk:
+                    target_handle.write(chunk)
+                else:
+                    break
+            enc_handle.close()
+            return str(os.stat(fh.fileno()).st_mtime_ns)
 
     def remote_write_io(
         self,
         path: str,
         source_handle: BinaryIO,
         over_version: str | None = None,
+        is_content: bool = False,
     ):
         """
         Writes encrypted contents from the passed file handle into "path".
