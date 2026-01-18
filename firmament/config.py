@@ -17,6 +17,7 @@ FilePath = Annotated[Path, AfterValidator(lambda v: v.expanduser()), PathType("f
 class BackendSchema(BaseModel):
 
     type: str
+    encryption_key: str | None = None
     options: dict[str, Any]
 
 
@@ -53,7 +54,11 @@ class Config:
         self.backends = {}
         for name, backend_config in self.config_data.backends.items():
             backend_class = BaseBackend.implementation_get(backend_config.type)
-            self.backends[name] = backend_class(name=name, **backend_config.options)
+            self.backends[name] = backend_class(
+                name=name,
+                encryption_key=backend_config.encryption_key,
+                **backend_config.options,
+            )
 
         # Set up datastores
         self.local_versions = LocalVersion(self.datastore_path / "local_versions")
