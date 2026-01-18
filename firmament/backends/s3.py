@@ -15,6 +15,7 @@ class S3Backend(BaseBackend):
     """
 
     type_aliases = ["s3"]
+    content_rebuild_interval = 60 * 60
 
     def __init__(
         self,
