@@ -17,7 +17,7 @@ FileVersionSet = dict[str, FileVersionData]
 
 class VersionError(BaseException):
     """
-    Exception for when the version you said you wanted to overwrite isn't present
+    Exception for when the version you said you wanted to overwrite isn't present.
     """
 
 
@@ -75,8 +75,8 @@ class BaseBackend:
 
     def remote_read_bytes(self, path: str) -> tuple[bytes, str]:
         """
-        Reads encrypted contents stored at "path" and returns a tuple of
-        (content, version)
+        Reads encrypted contents stored at "path" and returns a tuple of (content,
+        version)
         """
         result = BytesIO()
         version = self.remote_read_io(path, result)
@@ -90,7 +90,7 @@ class BaseBackend:
         is_content: bool = False,
     ):
         """
-        Writed passed bytes into encrypted contents stored at "path"
+        Writed passed bytes into encrypted contents stored at "path".
         """
         buffer = BytesIO(content)
         self.remote_write_io(
@@ -120,31 +120,31 @@ class BaseBackend:
         """
         Writes encrypted contents from the passed file handle into "path".
 
-        If lock is True, tries to lock the file to ensure nobody else writes it at
-        the same time as us. If a lock cannot be established (either synchronously
-        or via a update-if-version-unchanged system), raises IOError.
+        If lock is True, tries to lock the file to ensure nobody else writes it at the
+        same time as us. If a lock cannot be established (either synchronously or via a
+        update-if-version-unchanged system), raises IOError.
 
-        If is_content is True, this is a content block write (as opposed to a
-        database file). Backends may use this to apply different storage policies.
+        If is_content is True, this is a content block write (as opposed to a database
+        file). Backends may use this to apply different storage policies.
         """
         raise NotImplementedError()
 
     def remote_exists(self, path: str) -> bool:
         """
-        Returns if the given remote path exists
+        Returns if the given remote path exists.
         """
         raise NotImplementedError()
 
     def remote_delete(self, path: str):
         """
-        Deletes the remote path
+        Deletes the remote path.
         """
         raise NotImplementedError()
 
     def remote_content_walk(self) -> Iterator[str]:
         """
-        Yields the set of content hashes that are stored on this backend,
-        usually by walking the file tree.
+        Yields the set of content hashes that are stored on this backend, usually by
+        walking the file tree.
         """
         raise NotImplementedError()
 
@@ -165,6 +165,7 @@ class BaseBackend:
     def run_maintenance(self):
         """
         Entrypoint to do cache rebuilds or the like.
+
         Will be called periodically in its own thread.
         """
         pass
@@ -177,8 +178,10 @@ class BaseBackend:
 
     def content_upload(self, sha256sum: str, disk_path: Path):
         """
-        Adds the given content, sourced from the local path "disk_path", to
-        this backend. Blocks until complete.
+        Adds the given content, sourced from the local path "disk_path", to this
+        backend.
+
+        Blocks until complete.
         """
         content_path = self.remote_content_path(sha256sum)
         with open(disk_path, "rb") as orig_fh:
@@ -194,7 +197,7 @@ class BaseBackend:
 
     def content_delete(self, sha256sum: str):
         """
-        Deletes the content from this backend
+        Deletes the content from this backend.
         """
         self.remote_delete(self.remote_content_path(sha256sum))
         self.extra_content_known.discard(sha256sum)
@@ -223,7 +226,7 @@ class BaseBackend:
 
     def content_database_rebuild(self):
         """
-        Rebuilds the content database file
+        Rebuilds the content database file.
         """
         # Capture current extra known hashes before walking the filesystem
         # so we only remove those that existed before the walk started
@@ -239,8 +242,8 @@ class BaseBackend:
 
     def file_version_download(self) -> FileVersionSet:
         """
-        Returns a set of FileVersionEntries for all fileversions this remote
-        knows about.
+        Returns a set of FileVersionEntries for all fileversions this remote knows
+        about.
         """
         remote_path = self.remote_database_path("file-versions")
         if not self.remote_exists(remote_path):
@@ -252,8 +255,8 @@ class BaseBackend:
         """
         Sets the current set of remote file versions to include the given ones.
 
-        Uses the version locking for upload to merge the remote version in if
-        it has changed.
+        Uses the version locking for upload to merge the remote version in if it has
+        changed.
         """
         remote_path = self.remote_database_path("file-versions")
         for i in range(100):

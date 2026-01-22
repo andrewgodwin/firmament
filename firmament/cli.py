@@ -12,7 +12,7 @@ from firmament.server import Server
 
 class ColoredFormatter(logging.Formatter):
     """
-    Custom formatter with colors for different log levels
+    Custom formatter with colors for different log levels.
     """
 
     COLORS = {
@@ -89,7 +89,7 @@ def main(ctx, log_level: str, root_path: Path):
 @click.pass_obj
 def server(config):
     """
-    One-shot sync for debugging
+    One-shot sync for debugging.
     """
     Server(config).run()
 
@@ -98,7 +98,7 @@ def server(config):
 @click.pass_obj
 def tui(config: Config):
     """
-    Launch the Terminal User Interface
+    Launch the Terminal User Interface.
     """
     from firmament.tui import FirmamentTUI
 
@@ -109,7 +109,7 @@ def tui(config: Config):
 @click.pass_context
 def debug(ctx):
     """
-    Debug commands for inspecting internal state
+    Debug commands for inspecting internal state.
     """
     pass
 
@@ -118,7 +118,7 @@ def debug(ctx):
 @click.pass_obj
 def list_fv(config: Config):
     """
-    List all file versions in the datastore
+    List all file versions in the datastore.
     """
     console = Console()
     table = Table()
@@ -141,7 +141,7 @@ def list_fv(config: Config):
 @click.pass_obj
 def list_lv(config: Config):
     """
-    List all local versions in the datastore
+    List all local versions in the datastore.
     """
     console = Console()
     table = Table()
@@ -163,7 +163,7 @@ def list_lv(config: Config):
 
 def _format_size(size: float) -> str:
     """
-    Format size in human-readable units
+    Format size in human-readable units.
     """
     for unit in ["B", "KB", "MB", "GB"]:
         if size < 1024:

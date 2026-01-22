@@ -15,7 +15,9 @@ from .tree import FileStatus, FileTree, TreeNodeData, build_tree
 
 
 class FirmamentTUI(App[None]):
-    """Firmament File Sync TUI Application"""
+    """
+    Firmament File Sync TUI Application.
+    """
 
     CSS = """
     Screen {
@@ -85,7 +87,9 @@ class FirmamentTUI(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        """Initialize the tree on mount"""
+        """
+        Initialize the tree on mount.
+        """
         self.refresh_tree()
         # Focus the tree for keyboard navigation
         self.query_one("#file-tree", FileTree).focus()
@@ -93,7 +97,9 @@ class FirmamentTUI(App[None]):
         self.set_interval(2, self.refresh_tree)
 
     def refresh_tree(self) -> None:
-        """Rebuild tree from current data, preserving expanded state"""
+        """
+        Rebuild tree from current data, preserving expanded state.
+        """
         tree = self.query_one("#file-tree", FileTree)
 
         # Save expanded paths before clearing
@@ -109,7 +115,9 @@ class FirmamentTUI(App[None]):
         tree.root.expand()
 
     def _get_expanded_paths(self, node: TreeNode[TreeNodeData]) -> set[str]:
-        """Recursively collect paths of expanded nodes"""
+        """
+        Recursively collect paths of expanded nodes.
+        """
         expanded = set()
         if node.is_expanded and node.data:
             expanded.add(node.data.path)
@@ -123,7 +131,9 @@ class FirmamentTUI(App[None]):
         data: TreeNodeData,
         expanded_paths: set[str] | None = None,
     ) -> None:
-        """Recursively populate tree nodes"""
+        """
+        Recursively populate tree nodes.
+        """
         if expanded_paths is None:
             expanded_paths = set()
 
@@ -166,11 +176,15 @@ class FirmamentTUI(App[None]):
         return text
 
     def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
-        """Update details pane when a tree node is highlighted"""
+        """
+        Update details pane when a tree node is highlighted.
+        """
         self._update_details(event.node.data)
 
     def _update_details(self, data: TreeNodeData | None) -> None:
-        """Update the details pane with information about the selected node"""
+        """
+        Update the details pane with information about the selected node.
+        """
         details = self.query_one("#details-content", Static)
 
         if data is None:
@@ -253,7 +267,9 @@ class FirmamentTUI(App[None]):
 
     @staticmethod
     def _format_size(size: float) -> str:
-        """Format size in human-readable units"""
+        """
+        Format size in human-readable units.
+        """
         for unit in ["B", "KB", "MB", "GB"]:
             if size < 1024:
                 return f"{size:.1f} {unit}"
@@ -273,7 +289,9 @@ class FirmamentTUI(App[None]):
         self._set_path_request("ignore")
 
     def action_clear_request(self) -> None:
-        """Clear direct PathRequest (inherit from parent)"""
+        """
+        Clear direct PathRequest (inherit from parent)
+        """
         tree = self.query_one("#file-tree", FileTree)
         node = tree.cursor_node
         if node and node.data:
@@ -284,7 +302,9 @@ class FirmamentTUI(App[None]):
                 self.notify(f"Cleared PathRequest for {path}")
 
     def _set_path_request(self, request_type: PathRequestType) -> None:
-        """Set PathRequest for selected node"""
+        """
+        Set PathRequest for selected node.
+        """
         tree = self.query_one("#file-tree", FileTree)
         node = tree.cursor_node
         if node and node.data:
@@ -295,12 +315,16 @@ class FirmamentTUI(App[None]):
                 self.notify(f"Set {path} to {request_type}")
 
     def action_refresh(self) -> None:
-        """Refresh tree from datastore"""
+        """
+        Refresh tree from datastore.
+        """
         self.refresh_tree()
         self.notify("Tree refreshed")
 
     def action_delete_local(self) -> None:
-        """Delete local copy of file if path request allows it"""
+        """
+        Delete local copy of file if path request allows it.
+        """
         tree = self.query_one("#file-tree", FileTree)
         node = tree.cursor_node
         if not node or not node.data:

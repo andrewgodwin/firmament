@@ -11,20 +11,26 @@ from firmament.backends.local import LocalBackend
 
 @pytest.fixture
 def backend_root(tmp_path):
-    """Create a temporary directory for the backend."""
+    """
+    Create a temporary directory for the backend.
+    """
     return tmp_path / "backend"
 
 
 @pytest.fixture
 def local_backend(backend_root):
-    """Create a LocalBackend instance with no encryption."""
+    """
+    Create a LocalBackend instance with no encryption.
+    """
     backend_root.mkdir()
     return LocalBackend(root=str(backend_root), name="test-backend")
 
 
 @pytest.fixture
 def encrypted_backend(backend_root):
-    """Create a LocalBackend instance with encryption."""
+    """
+    Create a LocalBackend instance with encryption.
+    """
     backend_root.mkdir()
     return LocalBackend(
         root=str(backend_root), name="test-backend", encryption_key="test-key"
@@ -32,7 +38,9 @@ def encrypted_backend(backend_root):
 
 
 class TestLocalBackendBasicIO:
-    """Basic read/write tests for LocalBackend."""
+    """
+    Basic read/write tests for LocalBackend.
+    """
 
     def test_write_and_read_roundtrip(self, local_backend, backend_root):
         content = b"Hello, World!"
@@ -96,7 +104,9 @@ class TestLocalBackendBasicIO:
 
 
 class TestLocalBackendVersioning:
-    """Tests for version-based optimistic concurrency control."""
+    """
+    Tests for version-based optimistic concurrency control.
+    """
 
     def test_read_returns_version(self, local_backend, backend_root):
         path = str(backend_root / "test-file")
@@ -169,10 +179,14 @@ class TestLocalBackendVersioning:
 
 
 class TestLocalBackendConcurrency:
-    """Tests for concurrent access handling."""
+    """
+    Tests for concurrent access handling.
+    """
 
     def test_concurrent_writes_one_wins(self, local_backend, backend_root):
-        """When two threads try to write with the same version, one should fail."""
+        """
+        When two threads try to write with the same version, one should fail.
+        """
         path = str(backend_root / "test-file")
         local_backend.remote_write_io(path, io.BytesIO(b"initial"))
 
@@ -205,7 +219,9 @@ class TestLocalBackendConcurrency:
         assert results["version_error"] == 1
 
     def test_concurrent_versioned_writes_serialized(self, local_backend, backend_root):
-        """Multiple versioned writes should be serialized by flock."""
+        """
+        Multiple versioned writes should be serialized by flock.
+        """
         path = str(backend_root / "test-file")
         local_backend.remote_write_io(path, io.BytesIO(b"0"))
 
@@ -256,7 +272,9 @@ class TestLocalBackendConcurrency:
     def test_write_without_version_not_blocked_by_readers(
         self, local_backend, backend_root
     ):
-        """Writes without version check should still work (no deadlock with readers)."""
+        """
+        Writes without version check should still work (no deadlock with readers).
+        """
         path = str(backend_root / "test-file")
         local_backend.remote_write_io(path, io.BytesIO(b"initial"))
 
@@ -287,7 +305,9 @@ class TestLocalBackendConcurrency:
         reader_thread.join()
 
     def test_flock_prevents_partial_writes(self, local_backend, backend_root):
-        """Flock should prevent interleaved writes from corrupting data."""
+        """
+        Flock should prevent interleaved writes from corrupting data.
+        """
         path = str(backend_root / "test-file")
         local_backend.remote_write_io(path, io.BytesIO(b"initial"))
 
@@ -336,10 +356,14 @@ class TestLocalBackendConcurrency:
 
 
 class TestLocalBackendFileVersionUpload:
-    """Tests for the high-level file_version_upload with retry logic."""
+    """
+    Tests for the high-level file_version_upload with retry logic.
+    """
 
     def test_file_version_upload_sequential_merges(self, local_backend):
-        """Sequential file_version_upload calls should merge correctly."""
+        """
+        Sequential file_version_upload calls should merge correctly.
+        """
         # First upload
         local_backend.file_version_upload(
             {"/file-a": {"hash1": {"mtime": 1000, "size": 100}}}
@@ -355,7 +379,9 @@ class TestLocalBackendFileVersionUpload:
         assert "/file-b" in result
 
     def test_file_version_upload_merges_same_path(self, local_backend):
-        """Uploads to the same path should merge content hashes."""
+        """
+        Uploads to the same path should merge content hashes.
+        """
         local_backend.file_version_upload(
             {"/file": {"hash1": {"mtime": 1000, "size": 100}}}
         )
@@ -368,7 +394,8 @@ class TestLocalBackendFileVersionUpload:
         assert "hash2" in result["/file"]
 
     def test_file_version_upload_concurrent_after_initial(self, local_backend):
-        """Concurrent uploads after file exists should merge via retry.
+        """
+        Concurrent uploads after file exists should merge via retry.
 
         Note: This test uses sequential uploads to avoid a race condition in
         the implementation where concurrent first-writes (when db_version=None)

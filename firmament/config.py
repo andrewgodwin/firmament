@@ -34,7 +34,7 @@ class ConfigSchema(BaseModel):
 
 class Config:
     """
-    Config file parser
+    Config file parser.
     """
 
     backends: dict[str, BaseBackend]

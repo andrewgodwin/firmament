@@ -12,7 +12,9 @@ from firmament.datastore import (
 
 @pytest.fixture
 def datastore(tmp_path):
-    """Create a basic DiskDatastore for testing."""
+    """
+    Create a basic DiskDatastore for testing.
+    """
     ds = DiskDatastore[dict](tmp_path / "test-db")
     yield ds
     ds.close()
@@ -20,7 +22,9 @@ def datastore(tmp_path):
 
 @pytest.fixture
 def local_version(tmp_path):
-    """Create a LocalVersion datastore."""
+    """
+    Create a LocalVersion datastore.
+    """
     ds = LocalVersion(tmp_path / "local-version-db")
     yield ds
     ds.close()
@@ -28,7 +32,9 @@ def local_version(tmp_path):
 
 @pytest.fixture
 def file_version(tmp_path):
-    """Create a FileVersion datastore."""
+    """
+    Create a FileVersion datastore.
+    """
     ds = FileVersion(tmp_path / "file-version-db")
     yield ds
     ds.close()
@@ -36,7 +42,9 @@ def file_version(tmp_path):
 
 @pytest.fixture
 def path_request(tmp_path):
-    """Create a PathRequest datastore."""
+    """
+    Create a PathRequest datastore.
+    """
     ds = PathRequest(tmp_path / "path-request-db")
     yield ds
     ds.close()
@@ -44,14 +52,18 @@ def path_request(tmp_path):
 
 @pytest.fixture
 def content_backends(tmp_path):
-    """Create a ContentBackends datastore."""
+    """
+    Create a ContentBackends datastore.
+    """
     ds = ContentBackends(tmp_path / "content-backends-db")
     yield ds
     ds.close()
 
 
 class TestDiskDatastoreBasicOperations:
-    """Tests for basic CRUD operations."""
+    """
+    Tests for basic CRUD operations.
+    """
 
     def test_set_and_get(self, datastore):
         datastore.set("key1", {"value": 42})
@@ -81,7 +93,9 @@ class TestDiskDatastoreBasicOperations:
 
 
 class TestDiskDatastoreDictInterface:
-    """Tests for dict-like interface."""
+    """
+    Tests for dict-like interface.
+    """
 
     def test_getitem(self, datastore):
         datastore.set("key1", {"value": 1})
@@ -122,7 +136,9 @@ class TestDiskDatastoreDictInterface:
 
 
 class TestDiskDatastoreIteration:
-    """Tests for iteration methods."""
+    """
+    Tests for iteration methods.
+    """
 
     def test_keys(self, datastore):
         datastore["a"] = {"v": 1}
@@ -157,7 +173,9 @@ class TestDiskDatastoreIteration:
 
 
 class TestDiskDatastoreBulkOperations:
-    """Tests for bulk operations."""
+    """
+    Tests for bulk operations.
+    """
 
     def test_set_all_replaces_everything(self, datastore):
         datastore["old1"] = {"v": 1}
@@ -180,7 +198,9 @@ class TestDiskDatastoreBulkOperations:
 
 
 class TestDiskDatastorePersistence:
-    """Tests for data persistence."""
+    """
+    Tests for data persistence.
+    """
 
     def test_data_persists_after_close_reopen(self, tmp_path):
         db_path = tmp_path / "persist-db"
@@ -203,7 +223,9 @@ class TestDiskDatastorePersistence:
 
 
 class TestDiskDatastoreDataTypes:
-    """Tests for various data types."""
+    """
+    Tests for various data types.
+    """
 
     def test_string_value(self, datastore):
         datastore["key"] = "string value"
@@ -236,7 +258,9 @@ class TestDiskDatastoreDataTypes:
 
 
 class TestLocalVersion:
-    """Tests for LocalVersion-specific functionality."""
+    """
+    Tests for LocalVersion-specific functionality.
+    """
 
     def test_key_must_start_with_slash(self, local_version):
         with pytest.raises(ValueError, match="must start with /"):
@@ -361,7 +385,9 @@ class TestLocalVersion:
 
 
 class TestFileVersion:
-    """Tests for FileVersion-specific functionality."""
+    """
+    Tests for FileVersion-specific functionality.
+    """
 
     def test_key_must_start_with_slash(self, file_version):
         with pytest.raises(ValueError, match="must start with /"):
@@ -416,7 +442,9 @@ class TestFileVersion:
 
 
 class TestPathRequest:
-    """Tests for PathRequest-specific functionality."""
+    """
+    Tests for PathRequest-specific functionality.
+    """
 
     def test_key_must_start_with_slash(self, path_request):
         with pytest.raises(ValueError, match="must start with /"):
@@ -453,7 +481,9 @@ class TestPathRequest:
 
 
 class TestContentBackends:
-    """Tests for ContentBackends-specific functionality."""
+    """
+    Tests for ContentBackends-specific functionality.
+    """
 
     def test_store_backend_list(self, content_backends):
         content_backends["hash123"] = ["local", "s3-backup"]

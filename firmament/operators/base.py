@@ -7,7 +7,7 @@ from firmament.config import Config
 
 class BaseOperator(threading.Thread):
     """
-    Base class for all operators
+    Base class for all operators.
     """
 
     interval_short: float = 1
@@ -38,7 +38,8 @@ class BaseOperator(threading.Thread):
     def step(self) -> bool:
         """
         Called to do an iteration of the loop.
-        Returns if it did work or not; if True, then the next loop is quick.
-        If False, then a backoff happens.
+
+        Returns if it did work or not; if True, then the next loop is quick. If False,
+        then a backoff happens.
         """
         raise NotImplementedError()

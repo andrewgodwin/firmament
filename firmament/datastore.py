@@ -58,7 +58,9 @@ class DiskDatastore(Generic[T]):
 
     def delete(self, key: str) -> None:
         """
-        Delete a key. Raises KeyError if not found.
+        Delete a key.
+
+        Raises KeyError if not found.
         """
         self._validate_key(key)
         with self.env.begin(write=True) as txn:
@@ -110,7 +112,7 @@ class DiskDatastore(Generic[T]):
 
     def set_all(self, value: dict[str, T]):
         """
-        Overwrite the entire database to match value
+        Overwrite the entire database to match value.
         """
         with self.env.begin(write=True) as txn:
             txn.drop(self.env.open_db(), delete=False)
@@ -137,7 +139,7 @@ class LocalVersion(DiskDatastore[LocalVersionData]):
 
     def by_content_hash(self, content_hash: str) -> tuple[str, LocalVersionData]:
         """
-        Returns the first path key that has this content
+        Returns the first path key that has this content.
         """
         for path, meta in self.items():
             if meta["content_hash"] == content_hash:
@@ -160,8 +162,8 @@ class LocalVersion(DiskDatastore[LocalVersionData]):
         self, file_versions: "FileVersion"
     ) -> Iterator[tuple[str, LocalVersionData]]:
         """
-        Returns all LocalVersions which have a content_hash but do not have a
-        matching FileVersion (i.e. there is no FileVersion with their path and contenthash)
+        Returns all LocalVersions which have a content_hash but do not have a matching
+        FileVersion (i.e. there is no FileVersion with their path and contenthash)
         """
         for path, local_data in self.items():
             content_hash = local_data["content_hash"]
@@ -185,8 +187,8 @@ class FileVersion(DiskDatastore[FileVersionData]):
 
     def set_with_content(self, path: str, content_hash: str, meta: FileVersionMeta):
         """
-        Sets the path and content entry, making the path's value dict if it does
-        not exists already.
+        Sets the path and content entry, making the path's value dict if it does not
+        exists already.
         """
         path_value = cast(FileVersionData, self.get(path, default={}))
         path_value[content_hash] = meta
@@ -196,7 +198,7 @@ class FileVersion(DiskDatastore[FileVersionData]):
         self, path: str
     ) -> tuple[str | None, FileVersionMeta | None]:
         """
-        Returns the most recent content hash and its meta for a given path
+        Returns the most recent content hash and its meta for a given path.
         """
         try:
             candidates = list(self[path].items())
@@ -207,7 +209,7 @@ class FileVersion(DiskDatastore[FileVersionData]):
 
     def deleted_paths(self) -> Iterator[str]:
         """
-        Returns paths where the most recent content hash is DELETED_CONTENT_HASH
+        Returns paths where the most recent content hash is DELETED_CONTENT_HASH.
         """
         for path in self.keys():
             most_recent, _ = self.most_recent_content(path)
@@ -240,5 +242,5 @@ class PathRequest(DiskDatastore[PathRequestType]):
 
 class ContentBackends(DiskDatastore[list[str]]):
     """
-    Storage of what backend names each content hash is on
+    Storage of what backend names each content hash is on.
     """

@@ -7,7 +7,7 @@ from .base import BaseOperator
 
 class LocalCreateOperator(BaseOperator):
     """
-    Creates local files when we have a FileVersion that should have one
+    Creates local files when we have a FileVersion that should have one.
     """
 
     log_name = "local-create"

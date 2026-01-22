@@ -3,8 +3,8 @@ from .base import BaseOperator
 
 class DownloadOnceCleanupOperator(BaseOperator):
     """
-    Cleans up DOWNLOAD_ONCE path requests once all files under that path
-    have been downloaded (i.e., have a LocalVersion).
+    Cleans up DOWNLOAD_ONCE path requests once all files under that path have been
+    downloaded (i.e., have a LocalVersion).
     """
 
     log_name = "download-once-cleanup"

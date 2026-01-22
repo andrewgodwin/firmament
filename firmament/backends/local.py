@@ -64,9 +64,9 @@ class LocalBackend(BaseBackend):
         """
         Writes encrypted contents from the passed file handle into "path".
 
-        If lock is True, tries to lock the file to ensure nobody else writes it at
-        the same time as us. If a lock cannot be established (either synchronously
-        or via a update-if-version-unchanged system), raises IOError.
+        If lock is True, tries to lock the file to ensure nobody else writes it at the
+        same time as us. If a lock cannot be established (either synchronously or via a
+        update-if-version-unchanged system), raises IOError.
         """
         enc_handle = self.encryptor.encrypt_file(source_handle)
         path_obj = Path(path)
@@ -108,22 +108,22 @@ class LocalBackend(BaseBackend):
         """
         Works out storage path for given sha256sum.
 
-        As we're on an actual filesystem, use a 3-char prefix so the top level
-        has a max of 4096 entries.
+        As we're on an actual filesystem, use a 3-char prefix so the top level has a max
+        of 4096 entries.
         """
         cryptsum = self.encryptor.encrypt_identifier(sha256sum)
         return str(self.content_root / cryptsum[:3] / cryptsum)
 
     def remote_database_path(self, db_name: str) -> str:
         """
-        Works out storage path for given database name
+        Works out storage path for given database name.
         """
         return str(self.root / f"database-{db_name}")
 
     def remote_content_walk(self) -> Iterator[str]:
         """
-        Yields the set of content hashes that are stored on this backend,
-        usually by walking the file tree.
+        Yields the set of content hashes that are stored on this backend, usually by
+        walking the file tree.
         """
         for path, _, filenames in self.content_root.walk():
             for filename in filenames:

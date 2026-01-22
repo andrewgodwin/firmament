@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 
 
 class FileStatus(Enum):
-    """Status of a file in the sync system"""
+    """
+    Status of a file in the sync system.
+    """
 
     AVAILABLE = "A"  # Has FileVersion but no LocalVersion
     LOCAL = "L"  # Has both FileVersion and LocalVersion
@@ -24,7 +26,9 @@ class FileStatus(Enum):
 
 @dataclass
 class TreeNodeData:
-    """Data associated with each tree node"""
+    """
+    Data associated with each tree node.
+    """
 
     path: str
     name: str
@@ -109,7 +113,9 @@ def build_tree(config: "Config") -> TreeNodeData:
 
 
 class FileTree(Tree[TreeNodeData]):
-    """Custom tree widget for displaying file sync status"""
+    """
+    Custom tree widget for displaying file sync status.
+    """
 
     DEFAULT_CSS = """
     FileTree {
@@ -134,7 +140,10 @@ class FileTree(Tree[TreeNodeData]):
         self.guide_depth = 3
 
     def action_collapse(self) -> None:
-        """Collapse the current directory node, or move to parent if on a file or collapsed dir"""
+        """
+        Collapse the current directory node, or move to parent if on a file or collapsed
+        dir.
+        """
         if self.cursor_node:
             if self.cursor_node.is_expanded:
                 self.cursor_node.collapse()
@@ -142,14 +151,18 @@ class FileTree(Tree[TreeNodeData]):
                 self.select_node(self.cursor_node.parent)
 
     def action_expand(self) -> None:
-        """Expand the current directory node"""
+        """
+        Expand the current directory node.
+        """
         if self.cursor_node and not self.cursor_node.is_expanded:
             self.cursor_node.expand()
 
     def render_label(
         self, node: TreeNode[TreeNodeData], base_style: Style, style: Style
     ) -> Text:
-        """Render node label with status and path request indicators"""
+        """
+        Render node label with status and path request indicators.
+        """
         data = node.data
         if data is None:
             return Text(str(node.label), style=style)
@@ -200,7 +213,9 @@ class FileTree(Tree[TreeNodeData]):
 
     @staticmethod
     def _path_request_char(pr: PathRequestType) -> str:
-        """Single character representation of PathRequestType"""
+        """
+        Single character representation of PathRequestType.
+        """
         return {
             "full": "F",
             "on-demand": "O",

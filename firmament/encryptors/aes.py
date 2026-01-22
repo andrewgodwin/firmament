@@ -14,6 +14,7 @@ from firmament.encryptors.base import BaseEncryptor
 class _EncryptingStream(io.RawIOBase):
     """
     A streaming wrapper that encrypts file content in chunks using AES-GCM.
+
     Each chunk is prefixed with: [4-byte length][12-byte nonce][ciphertext+tag]
     """
 
@@ -74,6 +75,7 @@ class _EncryptingStream(io.RawIOBase):
 class _DecryptingStream(io.RawIOBase):
     """
     A streaming wrapper that decrypts AES-GCM encrypted content in chunks.
+
     Expects format: [4-byte length][12-byte nonce][ciphertext+tag]...
     """
 

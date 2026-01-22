@@ -64,7 +64,9 @@ class S3Backend(BaseBackend):
         return f"S3 (bucket {self.bucket})"
 
     def _full_key(self, path: str) -> str:
-        """Combines the prefix with the given path to form the full S3 key."""
+        """
+        Combines the prefix with the given path to form the full S3 key.
+        """
         if self.prefix:
             return f"{self.prefix}/{path}"
         return path
@@ -111,12 +113,11 @@ class S3Backend(BaseBackend):
         """
         Writes encrypted contents from the passed file handle into "path".
 
-        If over_version is provided, uses conditional put to ensure we're
-        overwriting the expected version. Raises VersionError if the current
-        version doesn't match.
+        If over_version is provided, uses conditional put to ensure we're overwriting
+        the expected version. Raises VersionError if the current version doesn't match.
 
-        If is_content is True and storage_class is configured, applies the
-        storage class to the object.
+        If is_content is True and storage_class is configured, applies the storage class
+        to the object.
         """
         key = self._full_key(path)
 
@@ -163,7 +164,9 @@ class S3Backend(BaseBackend):
             raise BackendError(f"Failed to write {key}: {e}")
 
     def remote_exists(self, path: str) -> bool:
-        """Returns if the given remote path exists."""
+        """
+        Returns if the given remote path exists.
+        """
         key = self._full_key(path)
         try:
             self.client.head_object(Bucket=self.bucket, Key=key)
@@ -175,7 +178,9 @@ class S3Backend(BaseBackend):
             raise BackendError(f"Failed to check existence of {key}: {e}")
 
     def remote_delete(self, path: str):
-        """Deletes the remote path."""
+        """
+        Deletes the remote path.
+        """
         key = self._full_key(path)
         try:
             self.client.delete_object(Bucket=self.bucket, Key=key)
@@ -193,13 +198,15 @@ class S3Backend(BaseBackend):
         return f"content/{cryptsum[:3]}/{cryptsum}"
 
     def remote_database_path(self, db_name: str) -> str:
-        """Works out storage path for given database name."""
+        """
+        Works out storage path for given database name.
+        """
         return f"database-{db_name}"
 
     def remote_content_walk(self) -> Iterator[str]:
         """
-        Yields the set of content hashes that are stored on this backend
-        by listing all objects under the content/ prefix.
+        Yields the set of content hashes that are stored on this backend by listing all
+        objects under the content/ prefix.
         """
         content_prefix = self._full_key("content/")
         paginator = self.client.get_paginator("list_objects_v2")

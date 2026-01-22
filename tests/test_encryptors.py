@@ -6,7 +6,9 @@ from firmament.encryptors.aes import AESEncryptor
 
 
 class TestNullEncryptor:
-    """Tests for the NullEncryptor (passthrough)."""
+    """
+    Tests for the NullEncryptor (passthrough).
+    """
 
     def test_identifier_roundtrip(self, null_encryptor):
         identifier = "abc123def456"
@@ -33,7 +35,9 @@ class TestNullEncryptor:
 
 
 class TestAESEncryptor:
-    """Tests for the AESEncryptor (AES-SIV for identifiers, AES-GCM for files)."""
+    """
+    Tests for the AESEncryptor (AES-SIV for identifiers, AES-GCM for files).
+    """
 
     def test_identifier_roundtrip(self, aes_encryptor):
         identifier = "abc123def456"
@@ -47,7 +51,9 @@ class TestAESEncryptor:
         assert encrypted != identifier
 
     def test_identifier_deterministic(self, aes_encryptor):
-        """AES-SIV should produce the same ciphertext for the same plaintext."""
+        """
+        AES-SIV should produce the same ciphertext for the same plaintext.
+        """
         identifier = "same-identifier"
         encrypted1 = aes_encryptor.encrypt_identifier(identifier)
         encrypted2 = aes_encryptor.encrypt_identifier(identifier)
@@ -71,14 +77,18 @@ class TestAESEncryptor:
         assert decrypted.read() == content
 
     def test_file_roundtrip_exact_chunk_size(self, aes_encryptor):
-        """Test content that is exactly one chunk."""
+        """
+        Test content that is exactly one chunk.
+        """
         content = b"x" * aes_encryptor.chunk_size
         encrypted = aes_encryptor.encrypt_file(io.BytesIO(content))
         decrypted = aes_encryptor.decrypt_file(encrypted)
         assert decrypted.read() == content
 
     def test_file_roundtrip_multiple_chunks(self, aes_encryptor):
-        """Test content spanning multiple chunks."""
+        """
+        Test content spanning multiple chunks.
+        """
         content = b"y" * (aes_encryptor.chunk_size * 2 + 500)
         encrypted = aes_encryptor.encrypt_file(io.BytesIO(content))
         decrypted = aes_encryptor.decrypt_file(encrypted)
@@ -92,14 +102,18 @@ class TestAESEncryptor:
         assert content not in encrypted_data
 
     def test_file_roundtrip_binary_data(self, aes_encryptor):
-        """Test with binary data including null bytes."""
+        """
+        Test with binary data including null bytes.
+        """
         content = bytes(range(256)) * 100
         encrypted = aes_encryptor.encrypt_file(io.BytesIO(content))
         decrypted = aes_encryptor.decrypt_file(encrypted)
         assert decrypted.read() == content
 
     def test_file_streaming_read(self, aes_encryptor):
-        """Test reading decrypted content in small chunks."""
+        """
+        Test reading decrypted content in small chunks.
+        """
         content = b"A" * 5000
         encrypted = aes_encryptor.encrypt_file(io.BytesIO(content))
         decrypted = aes_encryptor.decrypt_file(encrypted)

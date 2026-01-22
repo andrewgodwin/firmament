@@ -3,8 +3,8 @@ from .base import BaseOperator
 
 class LocalVersionCreationOperator(BaseOperator):
     """
-    Looks for hashed LocalFiles that don't have a corresponding FileVersion
-    and creates them.
+    Looks for hashed LocalFiles that don't have a corresponding FileVersion and creates
+    them.
     """
 
     log_name = "local-version-creation"
