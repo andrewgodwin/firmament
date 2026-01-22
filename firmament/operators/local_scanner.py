@@ -41,6 +41,7 @@ class LocalScannerOperator(BaseOperator):
                     "content_hash": None,
                     "mtime": int(stat_result.st_mtime),
                     "size": stat_result.st_size,
+                    "last_hashed": None,
                 }
                 if local_version_data is None or (
                     local_version_data["mtime"] < new_version_data["mtime"]

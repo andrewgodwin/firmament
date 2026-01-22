@@ -75,6 +75,7 @@ class LocalCreateOperator(BaseOperator):
                 "content_hash": None,
                 "mtime": most_recent_meta["mtime"],
                 "size": most_recent_meta["size"],
+                "last_hashed": None,
             }
             # Move the temporary file into place
             temporary_destination.rename(final_destination)

@@ -1,5 +1,6 @@
 import hashlib
 import os
+import time
 
 from .base import BaseOperator
 
@@ -21,6 +22,7 @@ class LocalHasherOperator(BaseOperator):
                 "content_hash": content_hash,
                 "size": stat_result.st_size,
                 "mtime": int(stat_result.st_mtime),
+                "last_hashed": int(time.time()),
             }
             hashed += 1
             self.logger.debug(f"Hashed file {path} as {content_hash}")
