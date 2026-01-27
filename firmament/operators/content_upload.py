@@ -16,6 +16,7 @@ class ContentUploadOperator(BaseOperator):
         content_locations: dict[str, list[str]] = {}
         # Now for each backend...
         for backend_name, backend in self.config.backends.items():
+            self.logger.debug(f"Starting upload scan for {backend_name}")
             # Get the list of everything in the backend
             remote_hashes = backend.content_list()
             # Store it in our local dict for UI reference
@@ -23,6 +24,9 @@ class ContentUploadOperator(BaseOperator):
                 content_locations.setdefault(remote_hash, []).append(backend_name)
             # Work out what we have that they don't
             missing_hashes = local_hashes.difference(remote_hashes)
+            self.logger.debug(
+                f"Backend {backend_name} is missing {len(missing_hashes)} contents"
+            )
             for missing_hash in missing_hashes:
                 # Upload it!
                 try:
