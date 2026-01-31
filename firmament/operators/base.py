@@ -20,6 +20,21 @@ class BaseOperator(threading.Thread):
         self.logger = logging.getLogger(self.log_name)
         super().__init__(daemon=True)
 
+    def set_status(
+        self,
+        short: str | None,
+        long: str | None = None,
+        progress_count: int = 0,
+        total_count: int = 0,
+    ):
+        self.config.operator_statuses[self.log_name] = {
+            "short": short,
+            "long": long,
+            "progress_count": progress_count,
+            "total_count": total_count,
+            "timestamp": int(time.time()),
+        }
+
     def run(self):
         self.running = True
         interval = self.interval_short

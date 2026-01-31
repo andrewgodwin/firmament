@@ -10,6 +10,7 @@ from firmament.types import (
     FileVersionData,
     FileVersionMeta,
     LocalVersionData,
+    OperatorStatusData,
     PathRequestType,
 )
 
@@ -243,4 +244,10 @@ class PathRequest(DiskDatastore[PathRequestType]):
 class ContentBackends(DiskDatastore[list[str]]):
     """
     Storage of what backend names each content hash is on.
+    """
+
+
+class OperatorStatus(DiskDatastore[OperatorStatusData]):
+    """
+    Tracks what each of the operators is currently doing for GUI reporting.
     """

@@ -17,3 +17,11 @@ class LocalVersionData(TypedDict):
 
 
 PathRequestType = Literal["full", "on-demand", "download-once", "ignore"]
+
+
+class OperatorStatusData(TypedDict):
+    short: str | None
+    long: str | None
+    progress_count: int
+    total_count: int
+    timestamp: int

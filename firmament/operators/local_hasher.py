@@ -11,10 +11,15 @@ class LocalHasherOperator(BaseOperator):
     """
 
     log_name = "local-hasher"
+    max_per_loop = 100
 
     def step(self) -> bool:
         hashed = 0
-        for path in self.config.local_versions.without_content_hashes():
+        to_hash = list(self.config.local_versions.without_content_hashes())
+        for i, path in enumerate(to_hash):
+            self.set_status("Hashing files", progress_count=i, total_count=len(to_hash))
+            if i > self.max_per_loop:
+                break
             with open(self.config.disk_path(path), "rb") as fh:
                 content_hash = hashlib.sha256(fh.read()).hexdigest()
                 stat_result = os.stat(fh.fileno())
@@ -26,4 +31,5 @@ class LocalHasherOperator(BaseOperator):
             }
             hashed += 1
             self.logger.debug(f"Hashed file {path} as {content_hash}")
+        self.set_status(None)
         return bool(hashed)

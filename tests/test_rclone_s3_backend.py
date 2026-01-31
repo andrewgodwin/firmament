@@ -101,6 +101,7 @@ class TestRcloneS3BackendInit:
                     "client_secret": "test-secret",
                     "token": '{"access_token":"xxx"}',
                 },
+                bucket_name="testbucket",
             )
 
             # Config file should be tracked
@@ -128,6 +129,7 @@ class TestRcloneS3BackendInit:
                         name="test-backend",
                         rclone_remote_type="drive",
                         rclone_remote_config={},
+                        bucket_name="testbucket",
                     )
 
                 assert "rclone binary not found" in str(exc_info.value)
@@ -156,6 +158,7 @@ class TestRcloneS3BackendInit:
                         name="test-backend",
                         rclone_remote_type="drive",
                         rclone_remote_config={},
+                        bucket_name="testbucket",
                     )
 
                 assert "remote not found" in str(exc_info.value)
@@ -179,6 +182,7 @@ class TestRcloneS3BackendInit:
                     name="test-backend",
                     rclone_remote_type="local",
                     rclone_remote_config={},
+                    bucket_name="testbucket",
                 )
 
                 assert backend._port == 54321
@@ -209,6 +213,7 @@ class TestRcloneS3BackendCommandBuilding:
                     name="test-backend",
                     rclone_remote_type="drive",
                     rclone_remote_config={"client_id": "test"},
+                    bucket_name="backups",
                     remote_path="backups/firmament",
                 )
 
@@ -241,6 +246,7 @@ class TestRcloneS3BackendCommandBuilding:
                     name="test-backend",
                     rclone_remote_type="drive",
                     rclone_remote_config={},
+                    bucket_name="testbucket",
                     extra_rclone_flags=["--vfs-cache-mode=full", "--verbose"],
                 )
 
@@ -269,6 +275,7 @@ class TestRcloneS3BackendCommandBuilding:
                     name="test-backend",
                     rclone_remote_type="local",
                     rclone_remote_config={},
+                    bucket_name="testbucket",
                     rclone_binary="/usr/local/bin/rclone",
                 )
 
@@ -280,14 +287,14 @@ class TestRcloneS3BackendCommandBuilding:
 
 class TestRcloneS3BackendBucketMapping:
     """
-    Tests for bucket name and prefix mapping.
+    Tests for bucket name configuration.
     """
 
-    def test_bucket_from_remote_path(
+    def test_bucket_from_config(
         self, mock_rclone_subprocess, mock_socket_connect, mock_boto3
     ):
         """
-        First path component should become bucket name.
+        Bucket should be set from bucket_name parameter.
         """
         with patch("firmament.backends.rclone_s3.tempfile.mkstemp") as m:
             m.return_value = (5, "/tmp/test.conf")
@@ -302,36 +309,11 @@ class TestRcloneS3BackendBucketMapping:
                     name="test-backend",
                     rclone_remote_type="local",
                     rclone_remote_config={},
+                    bucket_name="my-custom-bucket",
                     remote_path="backups/firmament/data",
                 )
 
-                assert backend.bucket == "backups"
-                assert backend.prefix == "firmament/data"
-
-                backend.close()
-
-    def test_default_bucket_no_path(
-        self, mock_rclone_subprocess, mock_socket_connect, mock_boto3
-    ):
-        """
-        Should use 'data' bucket when no remote_path.
-        """
-        with patch("firmament.backends.rclone_s3.tempfile.mkstemp") as m:
-            m.return_value = (5, "/tmp/test.conf")
-            with (
-                patch("firmament.backends.rclone_s3.os.write"),
-                patch("firmament.backends.rclone_s3.os.close"),
-                patch.object(
-                    RcloneS3Backend, "_find_available_port", return_value=8080
-                ),
-            ):
-                backend = RcloneS3Backend(
-                    name="test-backend",
-                    rclone_remote_type="local",
-                    rclone_remote_config={},
-                )
-
-                assert backend.bucket == "data"
+                assert backend.bucket == "my-custom-bucket"
                 assert backend.prefix == ""
 
                 backend.close()
@@ -365,6 +347,7 @@ class TestRcloneS3BackendCleanup:
                         name="test-backend",
                         rclone_remote_type="local",
                         rclone_remote_config={},
+                        bucket_name="testbucket",
                     )
 
                     backend.close()
@@ -394,6 +377,7 @@ class TestRcloneS3BackendCleanup:
                         name="test-backend",
                         rclone_remote_type="local",
                         rclone_remote_config={},
+                        bucket_name="testbucket",
                     )
 
                     backend.close()
@@ -427,6 +411,7 @@ class TestRcloneS3BackendStr:
                     name="test-backend",
                     rclone_remote_type="drive",
                     rclone_remote_config={},
+                    bucket_name="testbucket",
                     remote_path="backups/data",
                 )
 
@@ -483,7 +468,8 @@ def rclone_integration_backend(tmp_path):
         name="integration-test",
         rclone_remote_type="local",
         rclone_remote_config={"nounc": "true"},
-        remote_path=str(remote_dir / "testbucket"),
+        bucket_name="testbucket",
+        remote_path=str(remote_dir),
     )
 
     yield backend

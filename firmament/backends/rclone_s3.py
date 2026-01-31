@@ -45,6 +45,7 @@ class RcloneS3Backend(S3Backend):
         name: str,
         rclone_remote_type: str,
         rclone_remote_config: dict[str, Any],
+        bucket_name: str,
         remote_path: str = "",
         encryption_key: str | None = None,
         rclone_binary: str = "rclone",
@@ -60,6 +61,7 @@ class RcloneS3Backend(S3Backend):
             name: Backend name for firmament.
             rclone_remote_type: The rclone remote type (e.g., "drive", "dropbox", "s3").
             rclone_remote_config: Key-value config for the rclone remote.
+            bucket_name: The S3 bucket name to use (becomes a top-level directory).
             remote_path: Path within the remote (e.g., "backups/firmament").
             encryption_key: Optional encryption key for firmament encryption.
             rclone_binary: Path to rclone binary (default: "rclone").
@@ -105,19 +107,9 @@ class RcloneS3Backend(S3Backend):
         # Track this instance for cleanup
         RcloneS3Backend._active_instances.add(self)
 
-        # Work out bucket name and prefix from remote_path
-        # rclone serve s3 exposes top-level directories as buckets
-        if self.remote_path:
-            parts = self.remote_path.split("/")
-            bucket_name = parts[0]
-            prefix = "/".join(parts[1:]) if len(parts) > 1 else ""
-        else:
-            bucket_name = "data"
-            prefix = ""
-
         # Store for later use
         self._bucket_name = bucket_name
-        self._prefix = prefix
+        self._prefix = ""  # No prefix needed since bucket is explicit
         self._encryption_key = encryption_key
         self._name = name
 

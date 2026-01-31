@@ -12,7 +12,7 @@ class LocalCreateOperator(BaseOperator):
 
     log_name = "local-create"
     interval_short = 0.5
-    max_per_loop = 20
+    max_per_loop = 50
 
     def step(self) -> bool:
         created = 0
@@ -31,9 +31,14 @@ class LocalCreateOperator(BaseOperator):
         # Calculate which FileVersion paths do not have a LocalVersion
         potential_paths = set(self.config.file_versions.keys())
         potential_paths.difference_update(self.config.local_versions.keys())
-        for path in potential_paths:
+        for i, path in enumerate(potential_paths):
             if created > self.max_per_loop:
                 break
+            self.set_status(
+                "Downloading new files",
+                progress_count=i,
+                total_count=len(potential_paths),
+            )
             # Should we even sync this path?
             path_status = self.config.path_requests.resolve_status(path)
             if path_status == "on-demand" or path_status == "ignore":
@@ -81,4 +86,5 @@ class LocalCreateOperator(BaseOperator):
             temporary_destination.rename(final_destination)
             self.logger.debug(f"Downloaded {final_destination}")
             created += 1
+        self.set_status(None)
         return created > 0 or deleted > 0
