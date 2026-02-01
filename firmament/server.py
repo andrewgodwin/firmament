@@ -1,4 +1,5 @@
 import logging
+import shutil
 import sys
 import time
 from collections import Counter
@@ -31,14 +32,14 @@ class Server:
     Runs a series of operator loops.
     """
 
-    operators: list[type[BaseOperator]] = [
-        LocalScannerOperator,
-        LocalHasherOperator,
-        LocalVersionCreationOperator,
-        ContentUploadOperator,
-        FileVersionSyncOperator,
-        LocalCreateOperator,
-        DownloadOnceCleanupOperator,
+    operators: list[tuple[type[BaseOperator], int]] = [
+        (LocalScannerOperator, 1),
+        (LocalHasherOperator, 10),
+        (LocalVersionCreationOperator, 1),
+        (ContentUploadOperator, 1),
+        (FileVersionSyncOperator, 1),
+        (LocalCreateOperator, 1),
+        (DownloadOnceCleanupOperator, 1),
     ]
 
     def __init__(self, config: Config):
@@ -53,8 +54,9 @@ class Server:
 
         # Create a thread per operator and start it
         self.operator_instances = []
-        for operator in self.operators:
-            self.operator_instances.append(operator(self.config))
+        for operator_class, count in self.operators:
+            for i in range(count):
+                self.operator_instances.append(operator_class(self.config, i))
         [thread.start() for thread in self.operator_instances]
 
         # Wait for a shutdown signal
@@ -70,17 +72,19 @@ class Server:
         """
         last_line_count = 0
         while True:
+            term_width = shutil.get_terminal_size().columns
             lines = []
 
             # Build summary status line
             summary = self._build_summary_line()
-            lines.append(summary)
+            lines.append(self._truncate_line(summary, term_width))
 
             # Build operator status lines
             for i, op in enumerate(self.operator_instances):
                 if op.status is not None:
                     color = OPERATOR_COLORS[i % len(OPERATOR_COLORS)]
-                    lines.append(f"{color}{op.log_name}{RESET}: {op.status}")
+                    line = f"{color}{op.log_name}{RESET}: {op.status}"
+                    lines.append(self._truncate_line(line, term_width))
 
             # Move cursor up to overwrite previous lines
             if last_line_count > 0:
@@ -90,18 +94,31 @@ class Server:
             for line in lines:
                 sys.stdout.write("\033[2K" + line + "\n")
 
-            # Clear any extra lines from previous render
-            for _ in range(last_line_count - len(lines)):
-                sys.stdout.write("\033[2K\n")
-
-            # Move back up if we printed extra clearing lines
-            extra = last_line_count - len(lines)
-            if extra > 0:
-                sys.stdout.write(f"\033[{extra}A")
+            # Clear from cursor to end of screen (handles shrinking line count)
+            sys.stdout.write("\033[J")
 
             sys.stdout.flush()
             last_line_count = len(lines)
             time.sleep(0.1)
+
+    def _truncate_line(self, line: str, width: int) -> str:
+        """
+        Truncate a line to fit within terminal width, accounting for ANSI codes.
+        """
+        visible_len = 0
+        i = 0
+        while i < len(line):
+            if line[i] == "\033":
+                # Skip ANSI escape sequence
+                end = line.find("m", i)
+                if end != -1:
+                    i = end + 1
+                    continue
+            visible_len += 1
+            if visible_len >= width:
+                return line[:i] + RESET
+            i += 1
+        return line
 
     def _build_summary_line(self) -> str:
         """

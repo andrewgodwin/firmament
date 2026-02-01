@@ -19,6 +19,8 @@ class BaseOperator(threading.Thread):
         self.running: bool = False
         self.operator_index = operator_index
         self.status: str | None = None
+        if operator_index > 0:
+            self.log_name = f"{self.log_name}-{operator_index}"
         self.logger = logging.getLogger(self.log_name)
         super().__init__(daemon=True)
         self.post_init()
