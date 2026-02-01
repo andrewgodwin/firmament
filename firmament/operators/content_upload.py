@@ -16,7 +16,6 @@ class ContentUploadOperator(BaseOperator):
         content_locations: dict[str, list[str]] = {}
         # Now for each backend...
         for backend_name, backend in self.config.backends.items():
-            self.set_status(f"Scanning {backend_name}")
             self.logger.debug(f"Starting upload scan for {backend_name}")
             # Get the list of everything in the backend
             remote_hashes = backend.content_list()
@@ -30,11 +29,6 @@ class ContentUploadOperator(BaseOperator):
             )
             backend_uploaded = 0
             for missing_hash in missing_hashes:
-                self.set_status(
-                    f"Uploading to {backend_name}",
-                    progress_count=backend_uploaded,
-                    total_count=len(missing_hashes),
-                )
                 # Upload it!
                 try:
                     local_file_path, local_file_meta = (
@@ -45,6 +39,7 @@ class ContentUploadOperator(BaseOperator):
                         f"Content {missing_hash} vanished from local database during upload",
                     )
                     continue
+                self.status = f"Uploading {local_file_path}"
                 if local_file_path is not None:
                     try:
                         backend.content_upload(
@@ -63,5 +58,4 @@ class ContentUploadOperator(BaseOperator):
                     uploaded += 1
         # Shove our where-are-contents knowledge into the local DB
         self.config.content_backends.set_all(content_locations)
-        self.set_status(None)
         return uploaded > 0

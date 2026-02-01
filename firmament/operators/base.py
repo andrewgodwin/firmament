@@ -14,26 +14,17 @@ class BaseOperator(threading.Thread):
     interval_long: float = 10
     log_name = "base-operator"
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, operator_index: int = 0):
         self.config = config
         self.running: bool = False
+        self.operator_index = operator_index
+        self.status: str | None = None
         self.logger = logging.getLogger(self.log_name)
         super().__init__(daemon=True)
+        self.post_init()
 
-    def set_status(
-        self,
-        short: str | None,
-        long: str | None = None,
-        progress_count: int = 0,
-        total_count: int = 0,
-    ):
-        self.config.operator_statuses[self.log_name] = {
-            "short": short,
-            "long": long,
-            "progress_count": progress_count,
-            "total_count": total_count,
-            "timestamp": int(time.time()),
-        }
+    def post_init(self):
+        pass
 
     def run(self):
         self.running = True
@@ -41,6 +32,7 @@ class BaseOperator(threading.Thread):
         while self.running:
             try:
                 active = self.step()
+                self.status = None
                 if active:
                     interval = self.interval_short
                 else:

@@ -14,7 +14,7 @@ class FileVersionSyncOperator(BaseOperator):
         local_file_versions = self.config.file_versions.all()
         for backend_name, backend in self.config.backends.items():
             # Download and merge the remote fileversions list
-            self.set_status(f"Syncing file versions for {backend_name}")
+            self.status = f"Downloading database from {backend_name}"
             remote_file_versions = backend.file_version_download()
             for path, contents in remote_file_versions.items():
                 for content, metadata in contents.items():
@@ -36,7 +36,6 @@ class FileVersionSyncOperator(BaseOperator):
                         new += 1
         # Now upload the merged fileversions
         for backend_name, backend in self.config.backends.items():
-            self.set_status(f"Uploading file versions for {backend_name}")
+            self.status = f"Uploading database to {backend_name}"
             backend.file_version_upload(local_file_versions)
-        self.set_status(None)
         return new > 0

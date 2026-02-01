@@ -22,10 +22,10 @@ class LocalScannerOperator(BaseOperator):
         for directory, subdirs, filenames in self.config.root_path.walk():
             if ".firmament" in subdirs:
                 subdirs.remove(".firmament")
+            self.status = f"Scanning {directory}"
             for filename in filenames:
                 if filename.startswith(".firmament"):
                     continue
-                self.set_status("Scanning local files", progress_count=scanned)
                 scanned += 1
                 # Calculate what this file is and its mtime
                 file_path = (directory / filename).resolve()
@@ -51,10 +51,10 @@ class LocalScannerOperator(BaseOperator):
                     self.logger.debug(f"New file found: {firmament_path}")
                     new += 1
         self.logger.debug(f"{scanned} files scanned")
+        self.status = "Scanning deletions"
         deleted_paths = set(self.config.local_versions.keys()) - seen
         for path in deleted_paths:
             deleted += 1
-            self.set_status("Scanning local deletions", progress_count=deleted)
             if self.config.path_requests.resolve_status(path) == "full":
                 self.logger.debug(f"File deleted (propagating): {path}")
                 self.config.file_versions.set_with_content(
@@ -70,5 +70,4 @@ class LocalScannerOperator(BaseOperator):
             self.logger.info(f"{new} new files discovered")
         if deleted:
             self.logger.info(f"{deleted} files found deleted")
-        self.set_status(None)
         return new > 0 or deleted > 0

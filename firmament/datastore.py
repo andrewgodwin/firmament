@@ -237,6 +237,10 @@ class PathRequest(DiskDatastore[PathRequestType]):
             if path_config is not None:
                 return path_config
             path_obj = path_obj.parent
+        # See if we have a global default set
+        path_config = self.get("/")
+        if path_config is not None:
+            return path_config
         # Default is on-demand (to avoid mass downloads on new checkout)
         return "on-demand"
 

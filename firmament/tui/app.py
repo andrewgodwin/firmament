@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 
 from rich.text import Text
@@ -9,7 +10,7 @@ from textual.widgets.tree import TreeNode
 
 from firmament.config import Config
 from firmament.constants import DELETED_CONTENT_HASH
-from firmament.types import PathRequestType
+from firmament.types import OperatorStatusData, PathRequestType
 
 from .tree import FileStatus, FileTree, TreeNodeData, build_tree
 
@@ -23,7 +24,7 @@ class FirmamentTUI(App[None]):
     Screen {
         layout: grid;
         grid-size: 1;
-        grid-rows: 1fr auto;
+        grid-rows: 1fr auto auto;
     }
 
     #main-container {
@@ -50,6 +51,13 @@ class FirmamentTUI(App[None]):
     #details-content {
         width: 100%;
         height: 100%;
+    }
+
+    #status-panel {
+        height: auto;
+        background: $surface-darken-2;
+        padding: 0 1;
+        border-top: solid $primary;
     }
 
     #legend {
@@ -83,6 +91,7 @@ class FirmamentTUI(App[None]):
             ),
             id="main-container",
         )
+        yield Static(id="status-panel")
         yield Static(self._legend_text(), id="legend")
         yield Footer()
 
@@ -91,10 +100,86 @@ class FirmamentTUI(App[None]):
         Initialize the tree on mount.
         """
         self.refresh_tree()
+        self.refresh_status_panel()
         # Focus the tree for keyboard navigation
         self.query_one("#file-tree", FileTree).focus()
         # Set up auto-refresh every 2 seconds
-        self.set_interval(2, self.refresh_tree)
+        self.set_interval(2, self._refresh_all)
+
+    def _refresh_all(self) -> None:
+        """
+        Refresh both tree and status panel.
+        """
+        self.refresh_tree()
+        self.refresh_status_panel()
+
+    def refresh_status_panel(self) -> None:
+        """
+        Update the status panel with current operator statuses.
+        """
+        panel = self.query_one("#status-panel", Static)
+        text = self._build_status_text()
+        panel.update(text)
+        panel.display = bool(text.plain)
+
+    def _build_status_text(self) -> Text:
+        """
+        Build the status panel text from operator statuses.
+        """
+        text = Text()
+        active_statuses: list[tuple[str, OperatorStatusData]] = []
+        now = int(time.time())
+
+        for name, status in self.config.operator_statuses.items():
+            # Only show if short is set and timestamp is between 1 and 60 seconds old
+            age = now - status["timestamp"]
+            if status["short"] is not None and age < 60:
+                active_statuses.append((name, status))
+
+        if not active_statuses:
+            return text
+
+        # Sort by operator name for consistent ordering
+        active_statuses.sort(key=lambda x: x[0])
+
+        for i, (name, status) in enumerate(active_statuses):
+            if i > 0:
+                text.append(" | ")
+
+            text.append(f"{name}: ", style="bold")
+            text.append(status["short"] or "")
+
+            progress = status["progress_count"]
+            total = status["total_count"]
+            if total > 0:
+                # Draw progress bar if we have total_count
+                text.append(" ")
+                text.append(self._progress_bar(progress, total))
+            elif progress > 0:
+                # Show just the count if no total
+                text.append(f" ({progress})", style="dim")
+
+        return text
+
+    @staticmethod
+    def _progress_bar(progress: int, total: int, width: int = 10) -> Text:
+        """
+        Create a progress bar using Unicode block characters.
+        """
+        if total <= 0:
+            return Text()
+
+        ratio = min(progress / total, 1.0)
+        filled = int(ratio * width)
+        empty = width - filled
+
+        text = Text()
+        text.append("[", style="dim")
+        text.append("\u2588" * filled, style="green")
+        text.append("\u2591" * empty, style="dim")
+        text.append("]", style="dim")
+        text.append(f" {progress}/{total}", style="dim")
+        return text
 
     def refresh_tree(self) -> None:
         """
@@ -316,10 +401,10 @@ class FirmamentTUI(App[None]):
 
     def action_refresh(self) -> None:
         """
-        Refresh tree from datastore.
+        Refresh tree and status panel from datastore.
         """
-        self.refresh_tree()
-        self.notify("Tree refreshed")
+        self._refresh_all()
+        self.notify("Refreshed")
 
     def action_delete_local(self) -> None:
         """

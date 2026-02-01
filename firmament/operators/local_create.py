@@ -32,13 +32,9 @@ class LocalCreateOperator(BaseOperator):
         potential_paths = set(self.config.file_versions.keys())
         potential_paths.difference_update(self.config.local_versions.keys())
         for i, path in enumerate(potential_paths):
+            self.status = None
             if created > self.max_per_loop:
                 break
-            self.set_status(
-                "Downloading new files",
-                progress_count=i,
-                total_count=len(potential_paths),
-            )
             # Should we even sync this path?
             path_status = self.config.path_requests.resolve_status(path)
             if path_status == "on-demand" or path_status == "ignore":
@@ -53,6 +49,7 @@ class LocalCreateOperator(BaseOperator):
             if most_recent_content == DELETED_CONTENT_HASH:
                 continue
             # Download the content to a temporary file
+            self.status = f"Downloading {path}"
             final_destination = self.config.disk_path(path)
             final_destination.parent.mkdir(parents=True, exist_ok=True)
             temporary_destination = final_destination.with_name(
@@ -71,7 +68,7 @@ class LocalCreateOperator(BaseOperator):
                     )
                     break
             else:
-                self.logger.warn(
+                self.logger.warning(
                     f"Cannot download content {most_recent_content} for {path} - not available on any backend"
                 )
                 continue
@@ -86,5 +83,4 @@ class LocalCreateOperator(BaseOperator):
             temporary_destination.rename(final_destination)
             self.logger.debug(f"Downloaded {final_destination}")
             created += 1
-        self.set_status(None)
         return created > 0 or deleted > 0
