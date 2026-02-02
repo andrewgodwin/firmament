@@ -17,12 +17,16 @@ class LocalVersionCreationOperator(BaseOperator):
             # These shouldn't come through anyway, but it's good for typing
             if data["content_hash"] is None:
                 continue
-            # Make the new FileVersion
-            self.config.file_versions.set_with_content(
-                path,
-                data["content_hash"],
-                {"mtime": data["mtime"], "size": data["size"]},
-            )
-            added += 1
-            self.logger.debug(f"Added file version {path}@{data["content_hash"]}")
+
+            with self.config.path_lock.acquire(path) as acquired:
+                if not acquired:
+                    continue
+                # Make the new FileVersion
+                self.config.file_versions.set_with_content(
+                    path,
+                    data["content_hash"],
+                    {"mtime": data["mtime"], "size": data["size"]},
+                )
+                added += 1
+                self.logger.debug(f"Added file version {path}@{data["content_hash"]}")
         return added > 0

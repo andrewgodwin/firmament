@@ -47,25 +47,31 @@ class LocalScannerOperator(BaseOperator):
                 if local_version_data is None or (
                     local_version_data["mtime"] < new_version_data["mtime"]
                 ):
-                    self.config.local_versions[firmament_path] = new_version_data
-                    self.logger.debug(f"New file found: {firmament_path}")
-                    new += 1
+                    with self.config.path_lock.acquire(firmament_path) as acquired:
+                        if not acquired:
+                            continue
+                        self.config.local_versions[firmament_path] = new_version_data
+                        self.logger.debug(f"New file found: {firmament_path}")
+                        new += 1
         self.logger.debug(f"{scanned} files scanned")
         self.status = "Scanning deletions"
         deleted_paths = set(self.config.local_versions.keys()) - seen
         for path in deleted_paths:
-            deleted += 1
-            if self.config.path_requests.resolve_status(path) == "full":
-                self.logger.debug(f"File deleted (propagating): {path}")
-                self.config.file_versions.set_with_content(
-                    path,
-                    DELETED_CONTENT_HASH,
-                    {"mtime": int(time.time()), "size": 0},
-                )
-                del self.config.local_versions[path]
-            else:
-                self.logger.debug(f"File deleted (not propagating): {path}")
-                del self.config.local_versions[path]
+            with self.config.path_lock.acquire(path) as acquired:
+                if not acquired:
+                    continue
+                deleted += 1
+                if self.config.path_requests.resolve_status(path) == "full":
+                    self.logger.debug(f"File deleted (propagating): {path}")
+                    self.config.file_versions.set_with_content(
+                        path,
+                        DELETED_CONTENT_HASH,
+                        {"mtime": int(time.time()), "size": 0},
+                    )
+                    del self.config.local_versions[path]
+                else:
+                    self.logger.debug(f"File deleted (not propagating): {path}")
+                    del self.config.local_versions[path]
         if new:
             self.logger.info(f"{new} new files discovered")
         if deleted:

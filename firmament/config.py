@@ -1,3 +1,6 @@
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -38,6 +41,61 @@ class ConfigSchema(BaseModel):
     paths: dict[str, PathSchema] = {}
 
 
+class PathLock:
+    """
+    Thread-safe path locking for coordinating exclusive file access across operators.
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._locked_paths: set[str] = set()
+
+    def is_locked(self, path: str) -> bool:
+        """Peek: check if path is locked without acquiring."""
+        with self._lock:
+            return path in self._locked_paths
+
+    def try_acquire(self, path: str) -> bool:
+        """
+        Try to acquire lock.
+
+        Returns True if acquired, False if already locked.
+        """
+        with self._lock:
+            if path in self._locked_paths:
+                return False
+            self._locked_paths.add(path)
+            return True
+
+    def release(self, path: str) -> None:
+        """
+        Release lock on path.
+        """
+        with self._lock:
+            self._locked_paths.discard(path)
+
+    @contextmanager
+    def acquire(self, path: str) -> Iterator[bool]:
+        """
+        Context manager for path locking.
+
+        Yields True if lock acquired, False if already locked.
+        Automatically releases on exit.
+
+        Usage:
+            with config.path_lock.acquire(path) as acquired:
+                if not acquired:
+                    continue  # skip, someone else has it
+                # do work on path
+        """
+        acquired = self.try_acquire(path)
+        try:
+            yield acquired
+        finally:
+            if acquired:
+                self.release(path)
+
+
 class Config:
     """
     Config file parser.
@@ -74,6 +132,9 @@ class Config:
             self.datastore_path / "content_backends"
         )
         self.operator_statuses = OperatorStatus(self.datastore_path / "operator_status")
+
+        # Set up path lock for operator coordination
+        self.path_lock = PathLock()
 
     def disk_path(self, path: str) -> Path:
         """

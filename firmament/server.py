@@ -34,7 +34,7 @@ class Server:
 
     operators: list[tuple[type[BaseOperator], int]] = [
         (LocalScannerOperator, 1),
-        (LocalHasherOperator, 10),
+        (LocalHasherOperator, 5),
         (LocalVersionCreationOperator, 1),
         (ContentUploadOperator, 1),
         (FileVersionSyncOperator, 1),
