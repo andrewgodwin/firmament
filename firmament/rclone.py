@@ -1,7 +1,8 @@
+import json
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from firmament.config import Config
@@ -20,7 +21,8 @@ class RClone:
         args: list[str],
         filter_text: str | None = None,
         request_combined: bool = False,
-    ):
+        capture_output: bool = False,
+    ) -> str | None:
         """
         Wraps running an rclone command with some files that need writing.
         """
@@ -41,10 +43,29 @@ class RClone:
                 print("\033[0;36m", filter_text, "\033[0m")
                 args += ["--filter-from", str(filter_path)]
             print(f"== {args} ==")
-            subprocess.check_call(["rclone"] + args, env={"LANG": "en_US.UTF-8"})
-
+            if capture_output:
+                return subprocess.check_output(
+                    ["rclone"] + args, env={"LANG": "en_US.UTF-8"}
+                ).decode("utf8")
+            else:
+                subprocess.check_call(["rclone"] + args, env={"LANG": "en_US.UTF-8"})
             if request_combined:
-                print(open(combined_path).read())
+                return open(combined_path).read()
+        return None
+
+    def get_all_files(self, remote: str, path: str = "/"):
+        """
+        Returns the rclone lsjson decoded for the remote.
+        """
+        return json.loads(
+            cast(
+                str,
+                self.run_command(
+                    ["lsjson", "-R", "--files-only", f"{remote}:{path}"],
+                    capture_output=True,
+                ),
+            ),
+        )
 
     def generate_rclone_config(self, target: Path):
         """

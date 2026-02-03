@@ -2,6 +2,8 @@ from pathlib import Path
 
 import click
 
+from firmament.commands.browse import BrowseCommand
+from firmament.commands.ls import ListCommand
 from firmament.commands.sync import SyncCommand
 from firmament.config import Config
 
@@ -37,6 +39,31 @@ def sync(config):
     One-shot sync.
     """
     SyncCommand(config).run()
+
+
+@main.command()
+@click.pass_obj
+def ls(config):
+    """
+    General static ls command.
+    """
+    ListCommand(config).run()
+
+
+@main.command()
+@click.option(
+    "-r",
+    "--remote",
+    type=str,
+    default=None,
+    help="Remote to browse (defaults to default_remote)",
+)
+@click.pass_obj
+def browse(config, remote):
+    """
+    Interactive file tree browser.
+    """
+    BrowseCommand(config).run(remote=remote)
 
 
 if __name__ == "__main__":
