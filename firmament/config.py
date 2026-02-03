@@ -41,59 +41,61 @@ class ConfigSchema(BaseModel):
     paths: dict[str, PathSchema] = {}
 
 
-class PathLock:
+class ResourceLock:
     """
-    Thread-safe path locking for coordinating exclusive file access across operators.
+    Thread-safe resource locking for coordinating exclusive access across operators.
+
+    Used for both file paths and content hashes.
     """
 
     def __init__(self):
         self._lock = threading.Lock()
-        self._locked_paths: set[str] = set()
+        self._locked: set[str] = set()
 
-    def is_locked(self, path: str) -> bool:
-        """Peek: check if path is locked without acquiring."""
+    def is_locked(self, key: str) -> bool:
+        """Peek: check if resource is locked without acquiring."""
         with self._lock:
-            return path in self._locked_paths
+            return key in self._locked
 
-    def try_acquire(self, path: str) -> bool:
+    def try_acquire(self, key: str) -> bool:
         """
         Try to acquire lock.
 
         Returns True if acquired, False if already locked.
         """
         with self._lock:
-            if path in self._locked_paths:
+            if key in self._locked:
                 return False
-            self._locked_paths.add(path)
+            self._locked.add(key)
             return True
 
-    def release(self, path: str) -> None:
+    def release(self, key: str) -> None:
         """
-        Release lock on path.
+        Release lock on resource.
         """
         with self._lock:
-            self._locked_paths.discard(path)
+            self._locked.discard(key)
 
     @contextmanager
-    def acquire(self, path: str) -> Iterator[bool]:
+    def acquire(self, key: str) -> Iterator[bool]:
         """
-        Context manager for path locking.
+        Context manager for resource locking.
 
         Yields True if lock acquired, False if already locked.
         Automatically releases on exit.
 
         Usage:
-            with config.path_lock.acquire(path) as acquired:
+            with lock.acquire(key) as acquired:
                 if not acquired:
                     continue  # skip, someone else has it
-                # do work on path
+                # do work
         """
-        acquired = self.try_acquire(path)
+        acquired = self.try_acquire(key)
         try:
             yield acquired
         finally:
             if acquired:
-                self.release(path)
+                self.release(key)
 
 
 class Config:
@@ -133,8 +135,9 @@ class Config:
         )
         self.operator_statuses = OperatorStatus(self.datastore_path / "operator_status")
 
-        # Set up path lock for operator coordination
-        self.path_lock = PathLock()
+        # Set up locks for operator coordination
+        self.path_lock = ResourceLock()
+        self.content_lock = ResourceLock()
 
     def disk_path(self, path: str) -> Path:
         """

@@ -10,7 +10,7 @@ class LocalCreateOperator(BaseOperator):
     Creates local files when we have a FileVersion that should have one.
     """
 
-    log_name = "local-create"
+    log_name = "download"
     interval_short = 0.5
     max_per_loop = 50
 

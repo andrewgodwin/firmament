@@ -12,7 +12,7 @@ class LocalScannerOperator(BaseOperator):
     with any discoveries - and handles any missing files as potential deletions.
     """
 
-    log_name = "local-scanner"
+    log_name = "scanner"
 
     def step(self) -> bool:
         scanned = 0

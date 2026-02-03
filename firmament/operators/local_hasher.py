@@ -10,7 +10,7 @@ class LocalHasherOperator(BaseOperator):
     Looks for LocalFiles without a content hash, and hashes them.
     """
 
-    log_name = "local-hasher"
+    log_name = "hasher"
     max_per_loop = 100
 
     def step(self) -> bool:

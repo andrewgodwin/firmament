@@ -73,7 +73,7 @@ class RcloneS3Backend(S3Backend):
         # Store configuration before starting subprocess
         self.rclone_remote_type = rclone_remote_type
         self.rclone_remote_config = rclone_remote_config
-        self.remote_path = remote_path.strip("/")
+        self.remote_path = remote_path
         self.rclone_binary = rclone_binary
         self.serve_host = serve_host
         self.startup_timeout = startup_timeout
@@ -211,10 +211,7 @@ class RcloneS3Backend(S3Backend):
         Start the rclone serve s3 subprocess.
         """
         # Build the remote string using our generated "firmament" remote name
-        if self.remote_path:
-            remote_string = f"firmament:{self.remote_path}"
-        else:
-            remote_string = "firmament:"
+        remote_string = f"firmament:{self.remote_path}"
 
         # Build command
         cmd = [

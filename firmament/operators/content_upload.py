@@ -7,7 +7,7 @@ class ContentUploadOperator(BaseOperator):
     Looks for local Contents that are not in a backend and uploads them.
     """
 
-    log_name = "content-upload"
+    log_name = "upload"
 
     def step(self) -> bool:
         uploaded = 0
@@ -29,33 +29,37 @@ class ContentUploadOperator(BaseOperator):
             )
             backend_uploaded = 0
             for missing_hash in missing_hashes:
-                # Upload it!
-                try:
-                    local_file_path, local_file_meta = (
-                        self.config.local_versions.by_content_hash(missing_hash)
-                    )
-                except KeyError:
-                    self.logger.warning(
-                        f"Content {missing_hash} vanished from local database during upload",
-                    )
-                    continue
-                self.status = f"Uploading {local_file_path}"
-                if local_file_path is not None:
+                with self.config.content_lock.acquire(missing_hash) as acquired:
+                    if not acquired:
+                        continue
+
+                    # Upload it!
                     try:
-                        backend.content_upload(
-                            missing_hash,
-                            self.config.disk_path(local_file_path),
+                        local_file_path, local_file_meta = (
+                            self.config.local_versions.by_content_hash(missing_hash)
                         )
-                    except BackendError as e:
+                    except KeyError:
                         self.logger.warning(
-                            f"Content {missing_hash} failed upload: {e}"
+                            f"Content {missing_hash} vanished from local database during upload",
                         )
                         continue
-                    self.logger.debug(
-                        f"Uploaded content {missing_hash} to {backend_name}"
-                    )
-                    backend_uploaded += 1
-                    uploaded += 1
+                    self.status = f"Uploading {local_file_path}"
+                    if local_file_path is not None:
+                        try:
+                            backend.content_upload(
+                                missing_hash,
+                                self.config.disk_path(local_file_path),
+                            )
+                        except BackendError as e:
+                            self.logger.warning(
+                                f"Content {missing_hash} failed upload: {e}"
+                            )
+                            continue
+                        self.logger.debug(
+                            f"Uploaded content {missing_hash} to {backend_name}"
+                        )
+                        backend_uploaded += 1
+                        uploaded += 1
         # Shove our where-are-contents knowledge into the local DB
         self.config.content_backends.set_all(content_locations)
         return uploaded > 0

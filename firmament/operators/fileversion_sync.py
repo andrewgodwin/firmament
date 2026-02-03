@@ -6,8 +6,8 @@ class FileVersionSyncOperator(BaseOperator):
     Uploads and downloads FileVersion sets from backends.
     """
 
-    log_name = "fileversion-sync"
-    interval_short = 5
+    log_name = "version-sync"
+    interval_short = 30
 
     def step(self) -> bool:
         new = 0

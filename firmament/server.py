@@ -36,7 +36,7 @@ class Server:
         (LocalScannerOperator, 1),
         (LocalHasherOperator, 5),
         (LocalVersionCreationOperator, 1),
-        (ContentUploadOperator, 1),
+        (ContentUploadOperator, 3),
         (FileVersionSyncOperator, 1),
         (LocalCreateOperator, 1),
         (DownloadOnceCleanupOperator, 1),
