@@ -1,101 +1,24 @@
-import threading
 from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Literal
 
 import yaml
-from pydantic import AfterValidator, BaseModel
-from pydantic.types import PathType
+from pydantic import BaseModel
 
-from firmament.backends.base import BaseBackend
-from firmament.datastore import (
-    ContentBackends,
-    FileVersion,
-    LocalVersion,
-    OperatorStatus,
+from firmament.constants import (
+    PATH_REQUEST_DOWNLOAD_ONCE,
+    PATH_REQUEST_IGNORE,
+    PATH_REQUEST_ON_DEMAND,
+    PATH_REQUEST_SYNC,
     PathRequest,
 )
-
-DirectoryPath = Annotated[
-    Path, AfterValidator(lambda v: v.expanduser()), PathType("dir")
-]
-FilePath = Annotated[Path, AfterValidator(lambda v: v.expanduser()), PathType("file")]
-
-
-class BackendSchema(BaseModel):
-
-    type: str
-    encryption_key: str | None = None
-    options: dict[str, Any]
-
-
-class PathSchema(BaseModel):
-
-    on_demand: bool | None = None
+from firmament.rclone import RClone
 
 
 class ConfigSchema(BaseModel):
 
-    backends: dict[str, BackendSchema]
-    paths: dict[str, PathSchema] = {}
-
-
-class ResourceLock:
-    """
-    Thread-safe resource locking for coordinating exclusive access across operators.
-
-    Used for both file paths and content hashes.
-    """
-
-    def __init__(self):
-        self._lock = threading.Lock()
-        self._locked: set[str] = set()
-
-    def is_locked(self, key: str) -> bool:
-        """Peek: check if resource is locked without acquiring."""
-        with self._lock:
-            return key in self._locked
-
-    def try_acquire(self, key: str) -> bool:
-        """
-        Try to acquire lock.
-
-        Returns True if acquired, False if already locked.
-        """
-        with self._lock:
-            if key in self._locked:
-                return False
-            self._locked.add(key)
-            return True
-
-    def release(self, key: str) -> None:
-        """
-        Release lock on resource.
-        """
-        with self._lock:
-            self._locked.discard(key)
-
-    @contextmanager
-    def acquire(self, key: str) -> Iterator[bool]:
-        """
-        Context manager for resource locking.
-
-        Yields True if lock acquired, False if already locked.
-        Automatically releases on exit.
-
-        Usage:
-            with lock.acquire(key) as acquired:
-                if not acquired:
-                    continue  # skip, someone else has it
-                # do work
-        """
-        acquired = self.try_acquire(key)
-        try:
-            yield acquired
-        finally:
-            if acquired:
-                self.release(key)
+    remotes: dict[str, dict]
+    default_remote: str
 
 
 class Config:
@@ -103,44 +26,144 @@ class Config:
     Config file parser.
     """
 
-    backends: dict[str, BaseBackend]
-
     def __init__(self, root_path: Path):
         # Calculate paths
         self.root_path = root_path.resolve()
         self.meta_path = self.root_path / ".firmament"
         self.config_path = self.meta_path / "config"
-        self.datastore_path = self.meta_path / "datastore"
+        self.rclone_config_path = self.meta_path / "rclone.conf"
+        self.path_requests_path = self.meta_path / "path_requests"
 
         # Read main config in
         with open(self.config_path) as fh:
             self.config_data = ConfigSchema(**yaml.safe_load(fh.read()))
+        self.default_remote = self.config_data.default_remote
+        if self.default_remote not in self.config_data.remotes:
+            raise ValueError(f"Default remote {self.default_remote} is not a remote!")
 
-        # Set up backend class instances
-        self.backends = {}
-        for name, backend_config in self.config_data.backends.items():
-            backend_class = BaseBackend.implementation_get(backend_config.type)
-            self.backends[name] = backend_class(
-                name=name,
-                encryption_key=backend_config.encryption_key,
-                **backend_config.options,
-            )
+        # Rclone object
+        self.rclone = RClone(self)
 
-        # Set up datastores
-        self.local_versions = LocalVersion(self.datastore_path / "local_versions")
-        self.file_versions = FileVersion(self.datastore_path / "file_versions")
-        self.path_requests = PathRequest(self.datastore_path / "path_requests")
-        self.content_backends = ContentBackends(
-            self.datastore_path / "content_backends"
-        )
-        self.operator_statuses = OperatorStatus(self.datastore_path / "operator_status")
+        # Set up path request store
+        self.path_requests = PathRequestsStore(self.path_requests_path)
 
-        # Set up locks for operator coordination
-        self.path_lock = ResourceLock()
-        self.content_lock = ResourceLock()
 
-    def disk_path(self, path: str) -> Path:
+class PathRequestsStore:
+    """
+    Stores requested paths in a hierarchical, human-readable format.
+    """
+
+    requests: dict[str, PathRequest]
+
+    def __init__(self, file_path: Path):
+        self.file_path = file_path
+        self.load()
+
+    def load(self):
+        self.requests = {}
+        if not self.file_path.is_file():
+            return
+        with open(self.file_path) as fh:
+            for line in fh:
+                # Skip comments and blank lines
+                if line.startswith("#") or not line.strip():
+                    continue
+                # It's request, then a space, then path
+                request, path = line.split(maxsplit=1)
+                if (
+                    request == PATH_REQUEST_ON_DEMAND
+                    or request == PATH_REQUEST_DOWNLOAD_ONCE
+                    or request == PATH_REQUEST_IGNORE
+                    or request == PATH_REQUEST_SYNC
+                ):
+                    self.requests[path.strip()] = request
+                else:
+                    raise ValueError(f"Unknown request type {request} for {path}")
+
+    def save(self):
+        with open(self.file_path, "w") as fh:
+            for path, request in sorted(self.requests.items(), key=lambda t: t[1]):
+                fh.write(f"{request} {path}\n")
+
+    def get(self, path: str) -> PathRequest:
         """
-        Convert a virtual path (starting with /) to an absolute disk path.
+        Tries the path and each of its parents until a status is found.
         """
-        return self.root_path / path.lstrip("/")
+        # Validate the path is rooted correctly
+        if not path.startswith("/"):
+            raise ValueError("Path must start with /")
+        path_obj = Path(path)
+        while path_obj != path_obj.parent:
+            path_config = self.get(str(path_obj))
+            if path_config is not None:
+                return path_config
+            path_obj = path_obj.parent
+        # See if we have a global default set
+        return self.requests.get("/", "OD")
+
+    def set(self, path: str, request: PathRequest):
+        """
+        Sets a path's request.
+        """
+        # Validate the path is rooted correctly
+        if not path.startswith("/"):
+            raise ValueError("Path must start with /")
+        self.requests[path] = request
+
+    def download_once_paths(self) -> Iterator[str]:
+        """
+        Yields all entries set to DOWNLOAD_ONCE.
+        """
+        for path, request in list(self.requests.items()):
+            if request == PATH_REQUEST_DOWNLOAD_ONCE:
+                yield path
+
+    def generate_rclone_filters(
+        self, type: Literal["up-copy", "up-sync", "down-copy", "down-sync"]
+    ) -> str:
+        """
+        Turns our path requests into an rclone filter file (as a string)
+        """
+        # Rclone parses filters top to bottom in the file, and we apply
+        # filters from most precise path to least precise, so we generate them
+        # in deepest-directory-first order.
+        output = "# AUTOGENERATED - DO NOT EDIT\n"
+        output += "- .firmament*\n"
+        output += "- .firmament/**\n"
+        # Gather the paths to filter
+        filter_paths = list(self.requests.items())
+        filter_paths.sort(key=lambda t: (-len(t[0]), t[0]))
+        # If there is no root entry, add one so we don't sync all deletions up
+        if "/" not in self.requests:
+            filter_paths.append(("/", self.get("/")))
+        # Add an entry for each path based on the current mode
+        for path, request in filter_paths:
+            if request == PATH_REQUEST_ON_DEMAND:
+                if type == "up-copy":
+                    operator = "+"
+                else:
+                    operator = "-"
+            elif request == PATH_REQUEST_DOWNLOAD_ONCE:
+                if type == "up-copy" or type == "down-copy":
+                    operator = "+"
+                else:
+                    operator = "-"
+            elif request == PATH_REQUEST_SYNC:
+                if type != "up-sync":
+                    operator = "+"
+                else:
+                    operator = "-"
+                operator = "+"
+            elif request == PATH_REQUEST_IGNORE:
+                operator = "-"
+            else:
+                raise ValueError(f"Unknown request type {request}")
+            # Just in case
+            if not path.startswith("/"):
+                raise ValueError(f"Path {path} is not rooted")
+            # We don't know if the path is a file or directory so cover both
+            output += f"{operator} {path}/**\n"
+            output += f"{operator} {path}\n"
+        # Ensure we have a catchall rule
+
+        return output
