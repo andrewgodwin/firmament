@@ -40,9 +40,9 @@ class RClone:
                 filter_path = Path(tmpdir) / "filters"
                 with open(filter_path, "w") as fh:
                     fh.write(filter_text)
-                print("\033[0;36m", filter_text, "\033[0m")
+                # print("\033[0;36m", filter_text, "\033[0m")
                 args += ["--filter-from", str(filter_path)]
-            print(f"== {args} ==")
+            # print(f"== {args} ==")
             if capture_output:
                 return subprocess.check_output(
                     ["rclone"] + args, env={"LANG": "en_US.UTF-8"}

@@ -34,11 +34,12 @@ def main(ctx, root_path: Path):
 
 @main.command()
 @click.pass_obj
-def sync(config):
+@click.option("--nondestructive/--destructive")
+def sync(config, nondestructive=False):
     """
     One-shot sync.
     """
-    SyncCommand(config).run()
+    SyncCommand(config).run(nondestructive=nondestructive)
 
 
 @main.command()

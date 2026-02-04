@@ -1,3 +1,5 @@
+import click
+
 from firmament.commands.base import BaseCommand
 from firmament.constants import PATH_REQUEST_ON_DEMAND
 
@@ -10,16 +12,17 @@ class SyncCommand(BaseCommand):
     synchronises any SYNC folders
     """
 
-    def run(self, remote=None):
+    def run(self, remote=None, nondestructive=False):
         if remote is None:
             remote = self.config.default_remote
         # First, do an upward copy (of OD, DO and SY)
-        print("Nondestructive upload")
+        click.echo(click.style("Nondestructive upload", fg="cyan", bold=True))
         self.config.rclone.run_command(
             [
                 "copy",
                 str(self.config.root_path),
                 f"{remote}:",
+                "--progress",
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="up-copy"
@@ -27,12 +30,13 @@ class SyncCommand(BaseCommand):
             request_combined=True,
         )
         # Run a download
-        print("Nondestructive download")
+        click.echo(click.style("\nNondestructive download", fg="cyan", bold=True))
         self.config.rclone.run_command(
             [
                 "copy",
                 f"{remote}:",
                 str(self.config.root_path),
+                "--progress",
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="down-copy"
@@ -45,15 +49,17 @@ class SyncCommand(BaseCommand):
             self.config.path_requests.set(path, PATH_REQUEST_ON_DEMAND)
         self.config.path_requests.save()
         # Then do a destructive downward sync
-        print("Sync download")
-        self.config.rclone.run_command(
-            [
-                "sync",
-                f"{remote}:",
-                str(self.config.root_path),
-            ],
-            filter_text=self.config.path_requests.generate_rclone_filters(
-                type="down-sync"
-            ),
-            request_combined=True,
-        )
+        if not nondestructive:
+            click.echo(click.style("\nSync download", fg="cyan", bold=True))
+            self.config.rclone.run_command(
+                [
+                    "sync",
+                    f"{remote}:",
+                    str(self.config.root_path),
+                    "--progress",
+                ],
+                filter_text=self.config.path_requests.generate_rclone_filters(
+                    type="down-sync"
+                ),
+                request_combined=True,
+            )

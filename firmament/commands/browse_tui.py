@@ -6,6 +6,13 @@ from textual.app import App, ComposeResult
 from textual.widgets import Footer, Tree
 from textual.widgets.tree import TreeNode as TextualTreeNode
 
+from firmament.constants import (
+    PATH_REQUEST_DOWNLOAD_ONCE,
+    PATH_REQUEST_IGNORE,
+    PATH_REQUEST_ON_DEMAND,
+    PATH_REQUEST_SYNC,
+)
+
 if TYPE_CHECKING:
     from firmament.config import Config
 
@@ -173,6 +180,11 @@ class BrowseApp(App):
         ("r", "refresh", "Refresh"),
         ("left", "collapse_node", "Collapse"),
         ("right", "expand_node", "Expand"),
+        ("o", "set_on_demand", "On Demand"),
+        ("s", "set_sync", "Sync"),
+        ("d", "set_download_once", "Download Once"),
+        ("i", "set_ignore", "Ignore"),
+        ("x", "unset_request", "Unset"),
     ]
 
     CSS = """
@@ -215,7 +227,12 @@ class BrowseApp(App):
         """
         Recursively populate Textual tree from data tree.
         """
-        for child_name, child_data in sorted(data_node.children.items()):
+        # Sort directories first, then files, alphabetically within each group
+        sorted_children = sorted(
+            data_node.children.items(), key=lambda item: (not item[1].is_dir, item[0])
+        )
+
+        for child_name, child_data in sorted_children:
             # Format label with status indicators
             label = self.format_node_label(child_data)
 
@@ -233,45 +250,65 @@ class BrowseApp(App):
         """
         Format a node's display label.
         """
-        # Color mapping for path requests
-        request_colors = {
-            "OD": "yellow",
-            "DO": "green",
-            "SY": "blue",
-            "IG": "red",
+        # Map two-letter codes to single letters
+        request_short = {
+            "OD": "O",
+            "DO": "D",
+            "SY": "S",
+            "IG": "I",
         }
-        base_color = request_colors.get(node.path_request, "white")
+        short_request = request_short.get(node.path_request, node.path_request)
 
-        # Use dim color for inherited, bright for explicit
-        color = f"dim {base_color}" if not node.path_request_explicit else base_color
+        # Use brackets for explicit
+        if not node.path_request_explicit:
+            short_request = f"_{short_request}_"
+        else:
+            short_request = f"\\[{short_request}]"
 
-        # Format path request with brackets/parens for explicit/inherited
-        bracket_open = "[" if node.path_request_explicit else "("
-        bracket_close = "]" if node.path_request_explicit else ")"
-        request_label = (
-            f"[{color}]{bracket_open}{node.path_request}{bracket_close}[/{color}]"
-        )
+        # Color mapping for path requests using hex colors
+        request_colors = {
+            "\\[O]": "#FFD700",  # Gold
+            "_O_": "#B8860B",  # Dark goldenrod
+            "\\[D]": "#00FF00",  # Lime
+            "_D_": "#006400",  # Dark green
+            "\\[S]": "#1E90FF",  # Dodger blue
+            "_S_": "#4682B4",  # Steel blue
+            "\\[I]": "#808080",  # Grey
+            "_I_": "#696969",  # Dim grey
+        }
+        request_color = request_colors.get(short_request, "white")
 
         # Base name
         name = node.name
         if node.is_dir:
+            # Directories: just path request and name (no location)
             name = f"[bold cyan]{name}/[/]"
+            label = f"[{request_color}]{short_request}[/{request_color}] {name}"
+        else:
+            # Files: show location indicator where arrow would be
+            if node.is_local and node.is_remote:
+                location = "B"
+                location_color = "blue"
+            elif node.is_local:
+                location = "L"
+                location_color = "green"
+            elif node.is_remote:
+                location = "R"
+                location_color = "red"
+            else:
+                location = "?"
+                location_color = "white"
 
-        # Start with path request
-        label = f"{request_label} {name}"
+            # Format: location/request name size
+            label = (
+                f"[{location_color}]{location}[/{location_color}]"
+                f"[white] [/white]"
+                f"[{request_color}]{short_request}[/{request_color}] {name}"
+            )
 
-        # Add location indicators
-        locations = []
-        if node.is_local:
-            locations.append("L")
-        if node.is_remote:
-            locations.append("R")
-        if locations:
-            label += f" [dim yellow]({''.join(locations)})[/]"
-
-        # Add size for files
-        if not node.is_dir and node.size is not None:
-            label += f" [dim]{format_size(node.size)}[/]"
+            # Add size for files
+            if node.size is not None:
+                label += f" [dim]{format_size(node.size)}[/]"
 
         return label
 
@@ -290,6 +327,69 @@ class BrowseApp(App):
         tree = self.query_one(Tree)
         if tree.cursor_node is not None:
             tree.cursor_node.collapse()
+
+    def _set_path_request(self, request: str) -> None:
+        """
+        Set the path request for the currently selected node.
+        """
+        tree = self.query_one(Tree)
+        if tree.cursor_node is not None and tree.cursor_node.data is not None:
+            node: FileTreeNode = tree.cursor_node.data
+            full_path = f"/{node.path}" if node.path else "/"
+            self.config.path_requests.set(full_path, request)  # type:ignore
+            self.config.path_requests.save()
+
+            # Update the node's data and label without full refresh
+            node.path_request = request
+            node.path_request_explicit = True
+            tree.cursor_node.label = self.format_node_label(node)
+
+    def _unset_path_request(self) -> None:
+        """
+        Unset the explicit path request for the currently selected node.
+        """
+        tree = self.query_one(Tree)
+        if tree.cursor_node is not None and tree.cursor_node.data is not None:
+            node: FileTreeNode = tree.cursor_node.data
+            full_path = f"/{node.path}" if node.path else "/"
+            if full_path in self.config.path_requests.requests:
+                del self.config.path_requests.requests[full_path]
+                self.config.path_requests.save()
+
+                # Update the node's data and label without full refresh
+                node.path_request = get_path_request_safe(self.config, full_path)
+                node.path_request_explicit = False
+                tree.cursor_node.label = self.format_node_label(node)
+
+    def action_set_on_demand(self) -> None:
+        """
+        Set the selected path to ON_DEMAND.
+        """
+        self._set_path_request(PATH_REQUEST_ON_DEMAND)
+
+    def action_set_sync(self) -> None:
+        """
+        Set the selected path to SYNC.
+        """
+        self._set_path_request(PATH_REQUEST_SYNC)
+
+    def action_set_download_once(self) -> None:
+        """
+        Set the selected path to DOWNLOAD_ONCE.
+        """
+        self._set_path_request(PATH_REQUEST_DOWNLOAD_ONCE)
+
+    def action_set_ignore(self) -> None:
+        """
+        Set the selected path to IGNORE.
+        """
+        self._set_path_request(PATH_REQUEST_IGNORE)
+
+    def action_unset_request(self) -> None:
+        """
+        Unset the explicit path request, allowing it to inherit.
+        """
+        self._unset_path_request()
 
     def action_refresh(self) -> None:
         """
