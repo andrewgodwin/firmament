@@ -132,17 +132,16 @@ class BrowseApp(App):
         self._path_to_tnode = {"": tree.root}
         tree.root.expand()
 
-        # Start background scan
-        self._scan_files()
+        # Start background scans in parallel
+        self._scan_remote_files()
+        self._scan_local_files()
 
-    @work(exclusive=True, thread=True)
-    def _scan_files(self) -> None:
+    @work(thread=True)
+    def _scan_remote_files(self) -> None:
         """
-        Scan remote and local files in the background, updating the tree progressively.
+        Scan remote files in the background, updating the tree progressively.
         """
         worker = get_current_worker()
-
-        # Phase 1: Remote files (incremental)
         try:
             batch: list = []
             for file_info in self.config.rclone.get_all_files(self.remote):
@@ -157,7 +156,13 @@ class BrowseApp(App):
         except Exception:
             pass
 
-        # Phase 2: Local files (breadth-first)
+    @work(thread=True)
+    def _scan_local_files(self) -> None:
+        """
+        Scan local files in the background (breadth-first), updating the tree
+        progressively.
+        """
+        worker = get_current_worker()
         queue: deque[Path] = deque([self.config.root_path])
         while queue:
             if worker.is_cancelled:
