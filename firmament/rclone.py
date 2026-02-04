@@ -1,8 +1,8 @@
-import json
 import subprocess
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from firmament.config import Config
@@ -53,19 +53,38 @@ class RClone:
                 return open(combined_path).read()
         return None
 
-    def get_all_files(self, remote: str, path: str = "/"):
+    def get_all_files(self, remote: str, path: str = "/") -> Generator[dict]:
         """
-        Returns the rclone lsjson decoded for the remote.
+        Yields limited file information for the remote (path and size)
         """
-        return json.loads(
-            cast(
-                str,
-                self.run_command(
-                    ["lsjson", "-R", "--files-only", f"{remote}:{path}"],
-                    capture_output=True,
-                ),
-            ),
-        )
+        with tempfile.TemporaryDirectory(prefix="firmament-rclone-") as tmpdir:
+            config_path = Path(tmpdir) / "rclone.conf"
+            self.generate_rclone_config(config_path)
+            proc = subprocess.Popen(
+                [
+                    "rclone",
+                    "lsf",
+                    "-R",
+                    "--format",
+                    "sp",
+                    f"{remote}:{path}",
+                    "--config",
+                    str(config_path),
+                ],
+                stdout=subprocess.PIPE,
+                env={"LANG": "en_US.UTF-8"},
+                text=True,
+            )
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                line = line.rstrip("\n")
+                if not line:
+                    continue
+                size_str, file_path = line.split(";", 1)
+                yield {"Path": file_path, "Size": int(size_str)}
+            proc.wait()
+            if proc.returncode != 0:
+                raise subprocess.CalledProcessError(proc.returncode, "rclone")
 
     def generate_rclone_config(self, target: Path):
         """

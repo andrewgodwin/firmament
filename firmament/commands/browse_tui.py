@@ -1,10 +1,13 @@
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from textual import work
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Tree
 from textual.widgets.tree import TreeNode as TextualTreeNode
+from textual.worker import get_current_worker
 
 from firmament.constants import (
     PATH_REQUEST_DOWNLOAD_ONCE,
@@ -31,6 +34,8 @@ class FileTreeNode:
     size: int | None
     path_request: str
     path_request_explicit: bool  # True if set explicitly, False if inherited
+    local_count: int = 0  # Recursive count of local files in subtree
+    remote_count: int = 0  # Recursive count of remote files in subtree
     children: dict[str, "FileTreeNode"] = field(default_factory=dict)
 
 
@@ -55,107 +60,6 @@ def get_path_request_safe(config: "Config", path: str) -> str:
 
     # Default
     return config.path_requests.requests.get("/", "OD")
-
-
-def build_file_tree(config: "Config", remote: str) -> FileTreeNode:
-    """
-    Build unified tree from local and remote files.
-    """
-    # Root node
-    root = FileTreeNode(
-        path="",
-        name="/",
-        is_dir=True,
-        is_local=True,
-        is_remote=True,
-        size=None,
-        path_request="OD",
-        path_request_explicit=False,
-        children={},
-    )
-
-    # Phase 1: Scan remote files
-    try:
-        remote_files = config.rclone.get_all_files(f"{remote}")
-        for file_info in remote_files:
-            path = file_info["Path"]
-            parts = path.split("/")
-
-            # Insert into tree, creating intermediate directories
-            current = root
-            for i, part in enumerate(parts):
-                is_file = i == len(parts) - 1
-                if part not in current.children:
-                    current.children[part] = FileTreeNode(
-                        path="/".join(parts[: i + 1]),
-                        name=part,
-                        is_dir=not is_file,
-                        is_remote=True,
-                        is_local=False,
-                        size=file_info.get("Size") if is_file else None,
-                        path_request="OD",
-                        path_request_explicit=False,
-                        children={},
-                    )
-                else:
-                    # Update existing node
-                    current.children[part].is_remote = True
-                    if is_file and "Size" in file_info:
-                        current.children[part].size = file_info["Size"]
-                current = current.children[part]
-    except Exception as e:
-        print(f"Warning: Failed to fetch remote files: {e}")
-
-    # Phase 2: Scan local files
-    for local_path in config.root_path.rglob("*"):
-        # Skip .firmament
-        if ".firmament" in local_path.parts:
-            continue
-
-        try:
-            rel_path = local_path.relative_to(config.root_path)
-            parts = list(rel_path.parts)
-
-            # Insert or update
-            current = root
-            for i, part in enumerate(parts):
-                is_file = (i == len(parts) - 1) and local_path.is_file()
-                if part not in current.children:
-                    current.children[part] = FileTreeNode(
-                        path="/".join(parts[: i + 1]),
-                        name=part,
-                        is_dir=not is_file,
-                        is_remote=False,
-                        is_local=True,
-                        size=local_path.stat().st_size if is_file else None,
-                        path_request="OD",
-                        path_request_explicit=False,
-                        children={},
-                    )
-                else:
-                    # Update existing node
-                    current.children[part].is_local = True
-                    if is_file:
-                        try:
-                            current.children[part].size = local_path.stat().st_size
-                        except OSError:
-                            pass  # Ignore stat errors
-                current = current.children[part]
-        except (OSError, ValueError):
-            # Skip files we can't read
-            continue
-
-    # Phase 3: Apply path requests (recursive)
-    def apply_requests(node: FileTreeNode):
-        full_path = f"/{node.path}" if node.path else "/"
-        node.path_request = get_path_request_safe(config, full_path)
-        # Check if this path is explicitly set or inherited
-        node.path_request_explicit = full_path in config.path_requests.requests
-        for child in node.children.values():
-            apply_requests(child)
-
-    apply_requests(root)
-    return root
 
 
 def format_size(size_bytes: int) -> str:
@@ -198,6 +102,7 @@ class BrowseApp(App):
         self.config = config
         self.remote = remote
         self.file_tree: FileTreeNode | None = None
+        self._path_to_tnode: dict[str, TextualTreeNode] = {}
 
     def compose(self) -> ComposeResult:
         yield Tree("Loading...")
@@ -208,43 +113,223 @@ class BrowseApp(App):
         Load tree data when app starts.
         """
         tree = self.query_one(Tree)
-        tree.loading = True
 
-        # Build tree data
-        self.file_tree = build_file_tree(self.config, self.remote)
-
-        # Populate Textual tree
-        tree.clear()
-        tree.root.label = "/"
-        if self.file_tree is not None:
-            self.populate_tree(tree.root, self.file_tree)
-        tree.root.expand()
-        tree.loading = False
-
-    def populate_tree(
-        self, textual_node: TextualTreeNode, data_node: FileTreeNode
-    ) -> None:
-        """
-        Recursively populate Textual tree from data tree.
-        """
-        # Sort directories first, then files, alphabetically within each group
-        sorted_children = sorted(
-            data_node.children.items(), key=lambda item: (not item[1].is_dir, item[0])
+        # Create root
+        self.file_tree = FileTreeNode(
+            path="",
+            name="/",
+            is_dir=True,
+            is_local=True,
+            is_remote=True,
+            size=None,
+            path_request=get_path_request_safe(self.config, "/"),
+            path_request_explicit="/" in self.config.path_requests.requests,
         )
 
-        for child_name, child_data in sorted_children:
-            # Format label with status indicators
-            label = self.format_node_label(child_data)
+        tree.clear()
+        tree.root.data = self.file_tree
+        tree.root.label = self.format_node_label(self.file_tree)
+        self._path_to_tnode = {"": tree.root}
+        tree.root.expand()
 
-            # Add to tree
-            # For files (non-directories), disable the expand arrow
-            tree_node = textual_node.add(
-                label, data=child_data, allow_expand=child_data.is_dir
+        # Start background scan
+        self._scan_files()
+
+    @work(exclusive=True, thread=True)
+    def _scan_files(self) -> None:
+        """
+        Scan remote and local files in the background, updating the tree progressively.
+        """
+        worker = get_current_worker()
+
+        # Phase 1: Remote files (incremental)
+        try:
+            batch: list = []
+            for file_info in self.config.rclone.get_all_files(self.remote):
+                if worker.is_cancelled:
+                    return
+                batch.append(file_info)
+                if len(batch) >= 100:
+                    self.call_from_thread(self._process_remote_files, batch)
+                    batch = []
+            if batch:
+                self.call_from_thread(self._process_remote_files, batch)
+        except Exception:
+            pass
+
+        # Phase 2: Local files (breadth-first)
+        queue: deque[Path] = deque([self.config.root_path])
+        while queue:
+            if worker.is_cancelled:
+                return
+            dir_path = queue.popleft()
+
+            entries: list[tuple[list[str], bool, int | None]] = []
+            subdirs: list[Path] = []
+            try:
+                for entry in dir_path.iterdir():
+                    if ".firmament" in entry.parts:
+                        continue
+                    try:
+                        rel = entry.relative_to(self.config.root_path)
+                    except ValueError:
+                        continue
+                    is_dir = entry.is_dir()
+                    size = None
+                    if not is_dir:
+                        try:
+                            size = entry.stat().st_size
+                        except OSError:
+                            pass
+                    entries.append((list(rel.parts), is_dir, size))
+                    if is_dir:
+                        subdirs.append(entry)
+            except OSError:
+                continue
+
+            if entries:
+                self.call_from_thread(self._process_local_entries, entries)
+            queue.extend(sorted(subdirs, key=lambda p: p.name))
+
+    def _ensure_node(
+        self,
+        parts: list[str],
+        is_dir: bool,
+        is_remote: bool,
+        is_local: bool,
+        size: int | None,
+        dirty_dirs: set[str] | None = None,
+    ) -> None:
+        """
+        Walk/create a path in the data tree and Textual tree.
+        """
+        assert self.file_tree is not None
+        current = self.file_tree
+        ancestors: list[tuple[FileTreeNode, str]] = [(self.file_tree, "")]
+        delta_local = False
+        delta_remote = False
+
+        for i, part in enumerate(parts):
+            is_leaf = i == len(parts) - 1
+            child_path = "/".join(parts[: i + 1])
+            full_path = f"/{child_path}"
+
+            if part not in current.children:
+                node = FileTreeNode(
+                    path=child_path,
+                    name=part,
+                    is_dir=is_dir if is_leaf else True,
+                    is_local=is_local,
+                    is_remote=is_remote,
+                    size=size if is_leaf else None,
+                    path_request=get_path_request_safe(self.config, full_path),
+                    path_request_explicit=full_path
+                    in self.config.path_requests.requests,
+                )
+                current.children[part] = node
+
+                # Add to Textual tree
+                parent_path = "/".join(parts[:i])
+                parent_tnode = self._path_to_tnode.get(parent_path)
+                if parent_tnode is not None:
+                    tnode = parent_tnode.add(
+                        self.format_node_label(node),
+                        data=node,
+                        allow_expand=node.is_dir,
+                    )
+                    self._path_to_tnode[child_path] = tnode
+                    # Keep children sorted: directories first, then alphabetically
+                    parent_tnode._children.sort(
+                        key=lambda tn: (
+                            (not tn.data.is_dir, tn.data.name)
+                            if tn.data
+                            else (True, "")
+                        )
+                    )
+
+                if is_leaf and not node.is_dir:
+                    delta_local = is_local
+                    delta_remote = is_remote
+            else:
+                existing = current.children[part]
+                changed = False
+                if is_remote and not existing.is_remote:
+                    existing.is_remote = True
+                    changed = True
+                if is_local and not existing.is_local:
+                    existing.is_local = True
+                    changed = True
+                if is_leaf and size is not None and existing.size != size:
+                    existing.size = size
+                    changed = True
+                if changed:
+                    tnode = self._path_to_tnode.get(child_path)
+                    if tnode is not None:
+                        tnode.label = self.format_node_label(existing)
+
+                if is_leaf and not existing.is_dir:
+                    delta_local = is_local and not existing.is_local
+                    delta_remote = is_remote and not existing.is_remote
+
+            current = current.children[part]
+            if not is_leaf and current.is_dir:
+                ancestors.append((current, child_path))
+
+        # Propagate file counts to all ancestor directories
+        if not is_dir and (delta_local or delta_remote):
+            for anc_node, anc_path in ancestors:
+                if delta_local:
+                    anc_node.local_count += 1
+                if delta_remote:
+                    anc_node.remote_count += 1
+                if dirty_dirs is not None:
+                    dirty_dirs.add(anc_path)
+
+    def _refresh_dirty_dirs(self, dirty_dirs: set[str]) -> None:
+        """
+        Refresh Textual tree labels for directories whose counts changed.
+        """
+        for path in dirty_dirs:
+            tnode = self._path_to_tnode.get(path)
+            if tnode is not None and tnode.data is not None:
+                tnode.label = self.format_node_label(tnode.data)
+
+    def _process_remote_files(self, remote_files: list) -> None:
+        """
+        Add remote files to the data tree and Textual tree.
+        """
+        dirty_dirs: set[str] = set()
+        for file_info in remote_files:
+            path = file_info["Path"]
+            parts = path.split("/")
+            size = file_info.get("Size")
+            self._ensure_node(
+                parts,
+                is_dir=False,
+                is_remote=True,
+                is_local=False,
+                size=size,
+                dirty_dirs=dirty_dirs,
             )
+        self._refresh_dirty_dirs(dirty_dirs)
 
-            # If directory, add children
-            if child_data.is_dir and child_data.children:
-                self.populate_tree(tree_node, child_data)
+    def _process_local_entries(
+        self, entries: list[tuple[list[str], bool, int | None]]
+    ) -> None:
+        """
+        Add local entries to the data tree and Textual tree.
+        """
+        dirty_dirs: set[str] = set()
+        for parts, is_dir, size in entries:
+            self._ensure_node(
+                parts,
+                is_dir=is_dir,
+                is_remote=False,
+                is_local=True,
+                size=size,
+                dirty_dirs=dirty_dirs,
+            )
+        self._refresh_dirty_dirs(dirty_dirs)
 
     def format_node_label(self, node: FileTreeNode) -> str:
         """
@@ -281,9 +366,14 @@ class BrowseApp(App):
         # Base name
         name = node.name
         if node.is_dir:
-            # Directories: just path request and name (no location)
+            # Directories: path request, name, and file counts
             name = f"[bold cyan]{name}/[/]"
             label = f"[{request_color}]{short_request}[/{request_color}] {name}"
+            if node.local_count or node.remote_count:
+                label += (
+                    f" [#006400]{node.local_count}L[/]"
+                    f" [#4682B4]{node.remote_count}R[/]"
+                )
         else:
             # Files: show location indicator where arrow would be
             if node.is_local and node.is_remote:

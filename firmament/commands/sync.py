@@ -12,9 +12,11 @@ class SyncCommand(BaseCommand):
     synchronises any SYNC folders
     """
 
-    def run(self, remote=None, nondestructive=False):
+    def run(self, remote=None, max_transfer=None):
         if remote is None:
             remote = self.config.default_remote
+        if max_transfer is None:
+            max_transfer = "100T"
         # First, do an upward copy (of OD, DO and SY)
         click.echo(click.style("Nondestructive upload", fg="cyan", bold=True))
         self.config.rclone.run_command(
@@ -23,6 +25,8 @@ class SyncCommand(BaseCommand):
                 str(self.config.root_path),
                 f"{remote}:",
                 "--progress",
+                "--max-transfer",
+                max_transfer,
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="up-copy"
@@ -37,6 +41,8 @@ class SyncCommand(BaseCommand):
                 f"{remote}:",
                 str(self.config.root_path),
                 "--progress",
+                "--max-transfer",
+                max_transfer,
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="down-copy"
@@ -48,18 +54,3 @@ class SyncCommand(BaseCommand):
             print(f"Download once completed: {path}")
             self.config.path_requests.set(path, PATH_REQUEST_ON_DEMAND)
         self.config.path_requests.save()
-        # Then do a destructive downward sync
-        if not nondestructive:
-            click.echo(click.style("\nSync download", fg="cyan", bold=True))
-            self.config.rclone.run_command(
-                [
-                    "sync",
-                    f"{remote}:",
-                    str(self.config.root_path),
-                    "--progress",
-                ],
-                filter_text=self.config.path_requests.generate_rclone_filters(
-                    type="down-sync"
-                ),
-                request_combined=True,
-            )

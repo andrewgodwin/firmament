@@ -9,4 +9,4 @@ class ListCommand(BaseCommand):
     def run(self, remote=None):
         if remote is None:
             remote = self.config.default_remote
-        print(self.config.rclone.get_all_files(remote))
+        print(list(self.config.rclone.get_all_files(remote)))

@@ -4,6 +4,7 @@ import click
 
 from firmament.commands.browse import BrowseCommand
 from firmament.commands.ls import ListCommand
+from firmament.commands.rclone_debug import RCloneDebugCommand
 from firmament.commands.sync import SyncCommand
 from firmament.config import Config
 
@@ -34,12 +35,14 @@ def main(ctx, root_path: Path):
 
 @main.command()
 @click.pass_obj
-@click.option("--nondestructive/--destructive")
-def sync(config, nondestructive=False):
+@click.option("--max-transfer", type=str)
+def sync(config, nondestructive=False, max_transfer=None):
     """
     One-shot sync.
     """
-    SyncCommand(config).run(nondestructive=nondestructive)
+    SyncCommand(config).run(
+        max_transfer=max_transfer,
+    )
 
 
 @main.command()
@@ -49,6 +52,16 @@ def ls(config):
     General static ls command.
     """
     ListCommand(config).run()
+
+
+@main.command()
+@click.pass_obj
+@click.argument("command", nargs=-1)
+def rclone_debug(config, command):
+    """
+    Rclone command passthrough.
+    """
+    RCloneDebugCommand(config).run(list(command))
 
 
 @main.command()
