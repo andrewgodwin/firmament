@@ -35,14 +35,11 @@ def main(ctx, root_path: Path):
 
 @main.command()
 @click.pass_obj
-@click.option("--max-transfer", type=str)
-def sync(config, nondestructive=False, max_transfer=None):
+def sync(config):
     """
     One-shot sync.
     """
-    SyncCommand(config).run(
-        max_transfer=max_transfer,
-    )
+    SyncCommand(config).run()
 
 
 @main.command()

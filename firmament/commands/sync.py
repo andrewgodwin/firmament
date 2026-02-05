@@ -12,11 +12,9 @@ class SyncCommand(BaseCommand):
     synchronises any SYNC folders
     """
 
-    def run(self, remote=None, max_transfer=None):
+    def run(self, remote=None):
         if remote is None:
             remote = self.config.default_remote
-        if max_transfer is None:
-            max_transfer = "100T"
         # First, do an upward copy (of OD, DO and SY)
         click.echo(click.style("Nondestructive upload", fg="cyan", bold=True))
         self.config.rclone.run_command(
@@ -25,8 +23,12 @@ class SyncCommand(BaseCommand):
                 str(self.config.root_path),
                 f"{remote}:",
                 "--progress",
-                "--max-transfer",
-                max_transfer,
+                "--transfers",
+                "7",
+                "--order-by",
+                "size,mixed,75",
+                "--max-backlog",
+                "2000",
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="up-copy"
@@ -41,8 +43,12 @@ class SyncCommand(BaseCommand):
                 f"{remote}:",
                 str(self.config.root_path),
                 "--progress",
-                "--max-transfer",
-                max_transfer,
+                "--transfers",
+                "7",
+                "--order-by",
+                "size,mixed,75",
+                "--max-backlog",
+                "2000",
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="down-copy"
