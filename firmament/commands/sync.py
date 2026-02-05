@@ -23,12 +23,6 @@ class SyncCommand(BaseCommand):
                 str(self.config.root_path),
                 f"{remote}:",
                 "--progress",
-                "--transfers",
-                "7",
-                "--order-by",
-                "size,mixed,75",
-                "--max-backlog",
-                "2000",
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="up-copy"
@@ -43,12 +37,6 @@ class SyncCommand(BaseCommand):
                 f"{remote}:",
                 str(self.config.root_path),
                 "--progress",
-                "--transfers",
-                "7",
-                "--order-by",
-                "size,mixed,75",
-                "--max-backlog",
-                "2000",
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="down-copy"
