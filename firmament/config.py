@@ -19,6 +19,7 @@ class ConfigSchema(BaseModel):
 
     remotes: dict[str, dict]
     default_remote: str
+    rclone_path: str = "rclone"
 
 
 class Config:
@@ -42,6 +43,7 @@ class Config:
             raise ValueError(f"Default remote {self.default_remote} is not a remote!")
 
         # Rclone object
+        self.rclone_path = self.config_data.rclone_path
         self.rclone = RClone(self)
 
         # Set up path request store

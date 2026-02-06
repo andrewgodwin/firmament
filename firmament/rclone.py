@@ -45,10 +45,12 @@ class RClone:
             # print(f"== {args} ==")
             if capture_output:
                 return subprocess.check_output(
-                    ["rclone"] + args, env={"LANG": "en_US.UTF-8"}
+                    [self.config.rclone_path] + args, env={"LANG": "en_US.UTF-8"}
                 ).decode("utf8")
             else:
-                subprocess.check_call(["rclone"] + args, env={"LANG": "en_US.UTF-8"})
+                subprocess.check_call(
+                    [self.config.rclone_path] + args, env={"LANG": "en_US.UTF-8"}
+                )
             if request_combined:
                 return open(combined_path).read()
         return None
@@ -62,7 +64,7 @@ class RClone:
             self.generate_rclone_config(config_path)
             proc = subprocess.Popen(
                 [
-                    "rclone",
+                    self.config.rclone_path,
                     "lsf",
                     "-R",
                     "--format",
