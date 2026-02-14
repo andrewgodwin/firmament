@@ -1,3 +1,5 @@
+import datetime
+
 import click
 
 from firmament.commands.base import BaseCommand
@@ -15,6 +17,9 @@ class SyncCommand(BaseCommand):
     def run(self, remote=None):
         if remote is None:
             remote = self.config.default_remote
+        backup_suffix = datetime.datetime.now(datetime.UTC).strftime(
+            ".%Y-%m-%d-%H-%M-%S"
+        )
         # First, do an upward copy (of OD, DO and SY)
         click.echo(click.style("Nondestructive upload", fg="cyan", bold=True))
         self.config.rclone.run_command(
@@ -23,6 +28,9 @@ class SyncCommand(BaseCommand):
                 str(self.config.root_path),
                 f"{remote}:",
                 "--progress",
+                "--suffix",
+                backup_suffix,
+                "--suffix-keep-extension",
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="up-copy"
@@ -37,6 +45,9 @@ class SyncCommand(BaseCommand):
                 f"{remote}:",
                 str(self.config.root_path),
                 "--progress",
+                "--suffix",
+                backup_suffix,
+                "--suffix-keep-extension",
             ],
             filter_text=self.config.path_requests.generate_rclone_filters(
                 type="down-copy"
